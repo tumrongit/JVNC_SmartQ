@@ -58,33 +58,35 @@
       </div>
     </div>
 
-    <!-- ตารางรายการคิวเพื่ออัปเดตสถานะ -->
+    <!-- ตารางรายการคิวเพื่ออัปเดต/ลบสถานะ -->
     <div class="card shadow-sm">
       <div class="card-header bg-dark text-white fw-bold">รายการคิวทั้งหมดของวันนี้</div>
       <div class="card-body p-0">
-        <table class="table table-hover align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>เวลา</th>
-              <th>ชื่อผู้ติดต่อ</th>
-              <th>เรื่อง</th>
-              <th>ส่วนงาน</th>
-              <th>สถานะ / Memo</th>
-            </tr>
-          </thead>
-          <tbody id="adminTableBody">
-            <!-- ข้อมูลดึงมาใส่ด้วย JS -->
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 10%;">เวลา</th>
+                <th style="width: 20%;">ชื่อผู้ติดต่อ</th>
+                <th style="width: 20%;">เรื่อง</th>
+                <th style="width: 15%;">ส่วนงาน</th>
+                <th style="width: 25%;">สถานะ / Memo</th>
+                <th style="width: 10%;" class="text-center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="adminTableBody">
+              <!-- ข้อมูลดึงมาใส่ด้วย JS -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, doc, updateDoc, query, where, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, query, where, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // TODO: นำค่า Config จาก Firebase Project ของคุณมาวางตรงนี้
     const firebaseConfig = {
       apiKey: "AIzaSyDv1lkIfMQNFDq-WEWHJ-h7KVZSaatXpi0",
       authDomain: "jvnc-smartq.firebaseapp.com",
@@ -117,7 +119,7 @@
       alert('เพิ่มคิวเรียบร้อยแล้ว!');
     });
 
-    // ดึงข้อมูลคิวมาแสดงให้เจ้าหน้าที่กดเปลี่ยนสถานะ
+    // ดึงข้อมูลคิวมาแสดง
     const q = query(collection(db, "queues"), where("date_string", "==", todayStr), orderBy("created_at", "desc"));
     
     onSnapshot(q, (snapshot) => {
@@ -145,12 +147,17 @@
             </select>
             <input type="text" class="form-control form-control-sm" value="${item.memo || ''}" placeholder="แก้ไข Memo" onblur="updateMemo('${docId}', this.value)">
           </td>
+          <td class="text-center">
+            <button class="btn btn-outline-danger btn-sm" onclick="deleteQueue('${docId}', '${item.customer_name}')">
+              🗑️ ลบ
+            </button>
+          </td>
         `;
         tbody.appendChild(tr);
       });
     });
 
-    // ฟังก์ชันสำหรับอัปเดตสถานะและ Memo
+    // ฟังก์ชันอัปเดตสถานะ
     window.updateStatus = async (docId, newStatus) => {
       const queueRef = doc(db, "queues", docId);
       const isCompleted = newStatus === "นำเอกสารเข้าสำนวนแล้ว" || newStatus === "คืนเอกสาร";
@@ -160,9 +167,18 @@
       });
     };
 
+    // ฟังก์ชันอัปเดต Memo
     window.updateMemo = async (docId, newMemo) => {
       const queueRef = doc(db, "queues", docId);
       await updateDoc(queueRef, { memo: newMemo });
+    };
+
+    // ฟังก์ชันลบคิวงาน
+    window.deleteQueue = async (docId, name) => {
+      if (confirm(`คุณต้องการลบรายการคิวของ "${name}" ใช่หรือไม่?`)) {
+        await deleteDoc(doc(db, "queues", docId));
+        alert('ลบรายการคิวเรียบร้อยแล้ว');
+      }
     };
   </script>
 </body>
