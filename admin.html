@@ -70,7 +70,6 @@
               <th>เรื่อง</th>
               <th>ส่วนงาน</th>
               <th>สถานะ / Memo</th>
-              <th>จัดการ</th>
             </tr>
           </thead>
           <tbody id="adminTableBody">
@@ -146,7 +145,6 @@
             </select>
             <input type="text" class="form-control form-control-sm" value="${item.memo || ''}" placeholder="แก้ไข Memo" onblur="updateMemo('${docId}', this.value)">
           </td>
-          <td><span class="badge bg-info text-dark">ไอดี: ${docId.substring(0, 5)}</span></td>
         `;
         tbody.appendChild(tr);
       });
