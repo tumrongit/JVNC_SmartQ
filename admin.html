@@ -67,11 +67,12 @@
             <thead class="table-light">
               <tr>
                 <th style="width: 10%;">เวลา</th>
-                <th style="width: 20%;">ชื่อผู้ติดต่อ</th>
-                <th style="width: 20%;">เรื่อง</th>
-                <th style="width: 15%;">ส่วนงาน</th>
-                <th style="width: 25%;">สถานะ / Memo</th>
-                <th style="width: 10%;" class="text-center">จัดการ</th>
+                <th style="width: 18%;">ชื่อผู้ติดต่อ</th>
+                <th style="width: 18%;">เรื่อง</th>
+                <th style="width: 14%;">ส่วนงาน</th>
+                <th style="width: 20%;">สถานะ / Memo</th>
+                <th style="width: 12%;">เวลาที่ใช้</th>
+                <th style="width: 8%;" class="text-center">จัดการ</th>
               </tr>
             </thead>
             <tbody id="adminTableBody">
@@ -100,17 +101,37 @@
     const db = getFirestore(app);
     const todayStr = new Date().toISOString().split('T')[0];
 
+    // ฟังก์ชันคำนวณข้อความระยะเวลา
+    function formatDuration(createdAt, completedAt) {
+      if (!createdAt) return '-';
+      const start = new Date(createdAt);
+      const end = completedAt ? new Date(completedAt) : new Date();
+      const diffSec = Math.max(0, Math.floor((end - start) / 1000));
+      
+      const hours = Math.floor(diffSec / 3600);
+      const minutes = Math.floor((diffSec % 3600) / 60);
+      const seconds = diffSec % 60;
+      
+      return `${hours > 0 ? hours + ' ชม. ' : ''}${minutes} นาที ${seconds} วิ`;
+    }
+
     // เพิ่มคิวใหม่
     document.getElementById('addQueueForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const createdAt = new Date().toISOString();
+      const initialStatus = document.getElementById('status').value;
+      const isCompleted = initialStatus === "นำเอกสารเข้าสำนวนแล้ว" || initialStatus === "คืนเอกสาร";
+      const completedAt = isCompleted ? createdAt : null;
+
       const newQueue = {
         customer_name: document.getElementById('customer_name').value,
         subject: document.getElementById('subject').value,
         department: document.getElementById('department').value,
-        status: document.getElementById('status').value,
+        status: initialStatus,
         memo: document.getElementById('memo').value,
-        created_at: new Date().toISOString(),
-        completed_at: null,
+        created_at: createdAt,
+        completed_at: completedAt,
+        total_duration: isCompleted ? formatDuration(createdAt, completedAt) : null,
         date_string: todayStr
       };
 
@@ -130,6 +151,8 @@
         const item = documentSnap.data();
         const docId = documentSnap.id;
         const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        const isDone = item.status === "นำเอกสารเข้าสำนวนแล้ว" || item.status === "คืนเอกสาร";
+        const displayDuration = item.total_duration || formatDuration(item.created_at, item.completed_at);
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -138,7 +161,7 @@
           <td>${item.subject}</td>
           <td><small class="badge bg-secondary">${item.department}</small></td>
           <td>
-            <select class="form-select form-select-sm mb-1" onchange="updateStatus('${docId}', this.value)">
+            <select class="form-select form-select-sm mb-1" onchange="updateStatus('${docId}', this.value, '${item.created_at}')">
               <option value="เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ" ${item.status === 'เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ' ? 'selected' : ''}>เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ</option>
               <option value="ผู้พิพากษาพิจารณาคำร้อง" ${item.status === 'ผู้พิพากษาพิจารณาคำร้อง' ? 'selected' : ''}>ผู้พิพากษาพิจารณาคำร้อง</option>
               <option value="ผู้พิพากษามีคำสั่งแล้ว" ${item.status === 'ผู้พิพากษามีคำสั่งแล้ว' ? 'selected' : ''}>ผู้พิพากษามีคำสั่งแล้ว</option>
@@ -146,6 +169,11 @@
               <option value="คืนเอกสาร" ${item.status === 'คืนเอกสาร' ? 'selected' : ''}>คืนเอกสาร</option>
             </select>
             <input type="text" class="form-control form-control-sm" value="${item.memo || ''}" placeholder="แก้ไข Memo" onblur="updateMemo('${docId}', this.value)">
+          </td>
+          <td>
+            <span class="badge ${isDone ? 'bg-success' : 'bg-warning text-dark'}">
+              ${displayDuration}
+            </span>
           </td>
           <td class="text-center">
             <button class="btn btn-outline-danger btn-sm" onclick="deleteQueue('${docId}', '${item.customer_name}')">
@@ -157,20 +185,32 @@
       });
     });
 
-    // ฟังก์ชันอัปเดตสถานะ
-    window.updateStatus = async (docId, newStatus) => {
+    // ฟังก์ชันอัปเดตสถานะ + คำนวณและบันทึกระยะเวลาลงฐานข้อมูลถาวร
+    window.updateStatus = async (docId, newStatus, createdAt) => {
       const queueRef = doc(db, "queues", docId);
       const isCompleted = newStatus === "นำเอกสารเข้าสำนวนแล้ว" || newStatus === "คืนเอกสาร";
-      await updateDoc(queueRef, {
-        status: newStatus,
-        completed_at: isCompleted ? new Date().toISOString() : null
-      });
+      
+      if (isCompleted) {
+        const completedAt = new Date().toISOString();
+        const durationStr = formatDuration(createdAt, completedAt);
+        await updateDoc(queueRef, {
+          status: newStatus,
+          completed_at: completedAt,
+          total_duration: durationStr // บันทึกระยะเวลารวมลงฐานข้อมูลถาวร
+        });
+      } else {
+        await updateDoc(queueRef, {
+          status: newStatus,
+          completed_at: null,
+          total_duration: null
+        });
+      }
     };
 
     // ฟังก์ชันอัปเดต Memo
     window.updateMemo = async (docId, newMemo) => {
-      const queueRef = doc(db, "queues", docId);
-      await updateDoc(queueRef, { memo: newMemo });
+      const queueRef = doc(doc(db, "queues", docId));
+      await updateDoc(doc(db, "queues", docId), { memo: newMemo });
     };
 
     // ฟังก์ชันลบคิวงาน
