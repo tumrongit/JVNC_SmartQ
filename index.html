@@ -199,7 +199,7 @@
                   </span>
                 </div>
                 <div class="text-end">
-                  <small class="text-muted d-block" style="font-size: 0.75rem;">
+                  <small class="d-block ${isDone ? 'text-white fw-bold' : 'text-muted'}" style="font-size: 0.75rem;">
                     ${isDone ? '✅ เสร็จสิ้น (ใช้เวลา)' : 'ระยะเวลาที่ใช้'}
                   </small>
                   <span class="duration-badge ${isDone ? 'text-success' : 'text-warning'}" id="timer-${item.id}">
