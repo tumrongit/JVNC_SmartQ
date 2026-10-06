@@ -43,19 +43,13 @@
     .queue-card {
       background-color: #1e293b;
       border: 1px solid #334155;
-      border-radius: 12px;
+      border-radius: 14px;
       transition: transform 0.2s, box-shadow 0.2s;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     }
     .queue-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.5);
-    }
-    .badge-status {
-      font-size: 0.95rem;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-weight: 600;
     }
     .time-badge {
       background-color: rgba(59, 130, 246, 0.15);
@@ -71,6 +65,96 @@
       padding: 8px 12px;
       border-radius: 4px;
       font-size: 0.88rem;
+    }
+
+    /* Styles สำหรับ Progress Tracker สไตล์สถานีรถไฟ */
+    .progress-tracker {
+      position: relative;
+      margin: 25px 0 10px 0;
+      padding: 0 5px;
+    }
+    .tracker-track {
+      position: absolute;
+      top: 14px;
+      left: 10%;
+      right: 10%;
+      height: 4px;
+      background-color: #334155;
+      z-index: 1;
+    }
+    .tracker-fill {
+      position: absolute;
+      top: 14px;
+      left: 10%;
+      height: 4px;
+      background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%);
+      z-index: 2;
+      transition: width 0.4s ease;
+    }
+    .tracker-steps {
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      z-index: 3;
+    }
+    .step-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 25%;
+      text-align: center;
+    }
+    .step-node {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background-color: #1e293b;
+      border: 3px solid #475569;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #94a3b8;
+      transition: all 0.3s;
+      margin-bottom: 8px;
+    }
+    .step-item.active .step-node {
+      border-color: #3b82f6;
+      background-color: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+    }
+    .step-item.current .step-node {
+      border-color: #10b981;
+      background-color: #059669;
+      color: #ffffff;
+      animation: pulse-node 1.5s infinite;
+    }
+    .step-item.completed .step-node {
+      border-color: #10b981;
+      background-color: #10b981;
+      color: #ffffff;
+    }
+    .step-label {
+      font-size: 0.72rem;
+      color: #64748b;
+      line-height: 1.2;
+      font-weight: 500;
+    }
+    .step-item.active .step-label,
+    .step-item.completed .step-label {
+      color: #cbd5e1;
+    }
+    .step-item.current .step-label {
+      color: #34d399;
+      font-weight: 700;
+    }
+
+    @keyframes pulse-node {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
   </style>
 </head>
@@ -119,6 +203,14 @@
     let rawQueueData = [];
     let filterKeyword = "";
 
+    // แมปขั้นตอนสถานะกับเปอร์เซ็นต์และลำดับ index
+    const statusMap = {
+      "เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ": { step: 1, percent: 25 },
+      "ผู้พิพากษาพิจารณาคำร้อง": { step: 2, percent: 50 },
+      "ผู้พิพากษามีคำสั่งแล้ว": { step: 3, percent: 75 },
+      "เสร็จสิ้น": { step: 4, percent: 100 }
+    };
+
     document.getElementById('searchInput').addEventListener('input', (e) => {
       filterKeyword = e.target.value.trim().toLowerCase();
       renderQueueCards();
@@ -157,15 +249,26 @@
 
       container.innerHTML = filteredData.map(item => {
         const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-        const isDone = item.status === 'เสร็จสิ้น' || (item.completed_at !== null && item.completed_at !== undefined);
+        
+        // หา Progress step
+        const currentStatusInfo = statusMap[item.status] || { step: 1, percent: 25 };
+        const currentStep = currentStatusInfo.step;
+        const progressPercent = currentStatusInfo.percent;
+        
+        // คำนวณความยาวเส้นหลอด Progress (ช่วงจาก 0% ถึง 80% สำหรับ 4 ขั้น)
+        const fillWidthPercent = (currentStep - 1) * 26.66;
 
         return `
-          <div class="col-12 col-md-6 col-lg-4">
+          <div class="col-12 col-md-6 col-lg-6 col-xl-4">
             <div class="queue-card p-3 h-100 d-flex flex-column justify-content-between">
               <div>
+                <!-- ส่วนแถบบน: เวลา และ ส่วนงาน -->
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <span class="time-badge">🕒 ยื่นเมื่อ ${timeStr} น.</span>
-                  <span class="badge bg-secondary opacity-75">${item.department}</span>
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="badge bg-secondary opacity-75">${item.department}</span>
+                    <span class="badge ${currentStep === 4 ? 'bg-success' : 'bg-primary'}">${progressPercent}%</span>
+                  </div>
                 </div>
 
                 <h5 class="fw-bold text-white mb-1">${item.customer_name}</h5>
@@ -174,12 +277,38 @@
                 ${item.memo ? `<div class="memo-box text-warning mb-2">📌 ${item.memo}</div>` : ''}
               </div>
 
-              <!-- แสดงเฉพาะสถานะปัจจุบัน (เอาส่วนเวลาออกทั้งหมด) -->
-              <div class="pt-2 border-top border-secondary mt-2 d-flex align-items-center">
-                <span class="badge badge-status ${isDone ? 'bg-success text-white' : 'bg-warning text-dark'}">
-                  ${item.status}
-                </span>
+              <!-- Progress Tracker Bar สไตล์สถานีรถไฟ -->
+              <div class="progress-tracker">
+                <div class="tracker-track"></div>
+                <div class="tracker-fill" style="width: ${fillWidthPercent}%;"></div>
+                
+                <div class="tracker-steps">
+                  <!-- สถานีที่ 1 -->
+                  <div class="step-item ${currentStep > 1 ? 'completed' : (currentStep === 1 ? 'current' : '')}">
+                    <div class="step-node">${currentStep > 1 ? '✓' : '1'}</div>
+                    <div class="step-label">เจ้าหน้าที่รับเอกสาร</div>
+                  </div>
+                  
+                  <!-- สถานีที่ 2 -->
+                  <div class="step-item ${currentStep > 2 ? 'completed' : (currentStep === 2 ? 'current' : (currentStep > 1 ? 'active' : ''))}">
+                    <div class="step-node">${currentStep > 2 ? '✓' : '2'}</div>
+                    <div class="step-label">ผู้พิพากษาพิจารณา</div>
+                  </div>
+                  
+                  <!-- สถานีที่ 3 -->
+                  <div class="step-item ${currentStep > 3 ? 'completed' : (currentStep === 3 ? 'current' : (currentStep > 2 ? 'active' : ''))}">
+                    <div class="step-node">${currentStep > 3 ? '✓' : '3'}</div>
+                    <div class="step-label">มีคำสั่งแล้ว</div>
+                  </div>
+                  
+                  <!-- สถานีที่ 4 -->
+                  <div class="step-item ${currentStep === 4 ? 'completed current' : ''}">
+                    <div class="step-node">${currentStep === 4 ? '✓' : '4'}</div>
+                    <div class="step-label">เสร็จสิ้น</div>
+                  </div>
+                </div>
               </div>
+
             </div>
           </div>
         `;
