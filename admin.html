@@ -52,7 +52,7 @@
             <input type="text" id="memo" class="form-control" placeholder="ข้อความแจ้งประชาชนเพิ่มเติม (ถ้ามี)">
           </div>
           <div class="col-12 text-end">
-            <button type="submit" class="btn btn-success px-4">➕ สร้างรายการคิว</button>
+            <button type="submit" id="submitBtn" class="btn btn-success px-4">➕ สร้างรายการคิว</button>
           </div>
         </form>
       </div>
@@ -76,7 +76,7 @@
               </tr>
             </thead>
             <tbody id="adminTableBody">
-              <!-- ข้อมูลดึงมาใส่ด้วย JS -->
+              <tr><td colspan="7" class="text-center py-4 text-muted">กำลังโหลดข้อมูลคิวงาน...</td></tr>
             </tbody>
           </table>
         </div>
@@ -99,7 +99,10 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    const todayStr = new Date().toISOString().split('T')[0];
+
+    // คำนวณวันที่ตามเวลาประเทศไทย (YYYY-MM-DD)
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
     // ฟังก์ชันคำนวณข้อความระยะเวลา
     function formatDuration(createdAt, completedAt) {
@@ -118,32 +121,50 @@
     // เพิ่มคิวใหม่
     document.getElementById('addQueueForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const createdAt = new Date().toISOString();
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
 
-      const newQueue = {
-        customer_name: document.getElementById('customer_name').value,
-        subject: document.getElementById('subject').value,
-        department: document.getElementById('department').value,
-        status: document.getElementById('status').value,
-        memo: document.getElementById('memo').value,
-        created_at: createdAt,
-        completed_at: null,
-        total_duration: null,
-        date_string: todayStr
-      };
+      try {
+        const createdAt = new Date().toISOString();
+        const newQueue = {
+          customer_name: document.getElementById('customer_name').value,
+          subject: document.getElementById('subject').value,
+          department: document.getElementById('department').value,
+          status: document.getElementById('status').value,
+          memo: document.getElementById('memo').value,
+          created_at: createdAt,
+          completed_at: null,
+          total_duration: null,
+          date_string: todayStr
+        };
 
-      await addDoc(collection(db, "queues"), newQueue);
-      document.getElementById('addQueueForm').reset();
-      alert('เพิ่มคิวเรียบร้อยแล้ว!');
+        await addDoc(collection(db, "queues"), newQueue);
+        document.getElementById('addQueueForm').reset();
+        alert('เพิ่มคิวเรียบร้อยแล้ว!');
+      } catch (err) {
+        console.error("เกิดข้อผิดพลาดในการบันทึก:", err);
+        alert('ไม่สามารถบันทึกข้อมูลได้: ' + err.message);
+      } finally {
+        submitBtn.disabled = false;
+      }
     });
 
-    // ดึงข้อมูลคิวมาแสดง
-    const q = query(collection(db, "queues"), where("date_string", "==", todayStr), orderBy("created_at", "desc"));
+    // ดึงข้อมูลคิวมาแสดง Realtime
+    const q = query(
+      collection(db, "queues"), 
+      where("date_string", "==", todayStr), 
+      orderBy("created_at", "desc")
+    );
     
     onSnapshot(q, (snapshot) => {
       const tbody = document.getElementById('adminTableBody');
       tbody.innerHTML = '';
       
+      if (snapshot.empty) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">ยังไม่มีรายการคำร้องในวันนี้</td></tr>';
+        return;
+      }
+
       snapshot.forEach((documentSnap) => {
         const item = documentSnap.data();
         const docId = documentSnap.id;
@@ -187,15 +208,19 @@
         `;
         tbody.appendChild(tr);
       });
+    }, (error) => {
+      console.error("Firestore Error:", error);
+      const tbody = document.getElementById('adminTableBody');
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">เกิดข้อผิดพลาดในการโหลดข้อมูล (โปรดเช็ก Console/Rules)</td></tr>`;
     });
 
-    // ฟังก์ชันอัปเดตเฉพาะสถานะ (ไม่กระทบกับตัวจับเวลา)
+    // ฟังก์ชันอัปเดตเฉพาะสถานะ
     window.updateStatus = async (docId, newStatus) => {
       const queueRef = doc(db, "queues", docId);
       await updateDoc(queueRef, { status: newStatus });
     };
 
-    // ฟังก์ชันกดปุ่ม "เสร็จสิ้น" (เพื่อหยุดจับเวลาและบันทึกเวลาลงฐานข้อมูลโดยคงสถานะปัจจุบันไว้)
+    // ฟังก์ชันกดปุ่ม "เสร็จสิ้น"
     window.finishQueue = async (docId, createdAt) => {
       if (confirm('คุณต้องการจบการทำงานคิวนี้และบันทึกเวลาใช่หรือไม่?')) {
         const queueRef = doc(db, "queues", docId);
@@ -204,7 +229,7 @@
 
         await updateDoc(queueRef, {
           completed_at: completedAt,
-          total_duration: durationStr // บันทึกระยะเวลารวมถาวร โดยไม่เปลี่ยนฟิลด์ status
+          total_duration: durationStr
         });
         alert('บันทึกการจบงานและหยุดเวลาเรียบร้อยแล้ว');
       }
