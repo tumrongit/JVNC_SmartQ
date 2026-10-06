@@ -5,31 +5,59 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบจัดการคิว - เจ้าหน้าที่ศาล</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8fafc;
+      font-family: 'Sarabun', sans-serif;
+    }
+    .admin-card {
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    .admin-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .time-badge {
+      background-color: #e0f2fe;
+      color: #0369a1;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .duration-badge {
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+  </style>
 </head>
-<body class="bg-light">
+<body>
 
   <div class="container py-4">
-    <h3 class="mb-4 text-primary">🛠️ บันทึกและจัดการสถานะคำร้อง (เจ้าหน้าที่)</h3>
+    <h3 class="mb-4 text-primary fw-bold">🛠️ บันทึกและจัดการสถานะคำร้อง (เจ้าหน้าที่)</h3>
 
     <!-- ฟอร์มสร้างคิวใหม่ -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-primary text-white fw-bold">สร้างรายการคำร้องใหม่</div>
-      <div class="card-body">
+    <div class="card shadow-sm mb-4 border-0">
+      <div class="card-header bg-primary text-white fw-bold py-3">➕ สร้างรายการคำร้องใหม่</div>
+      <div class="card-body p-4">
         <form id="addQueueForm" class="row g-3">
           <div class="col-md-4">
-            <label class="form-label">1. ชื่อผู้มาติดต่อ</label>
+            <label class="form-label fw-bold">1. ชื่อผู้มาติดต่อ</label>
             <input type="text" id="customer_name" class="form-control" required placeholder="เช่น นายสมชาย ใจดี">
           </div>
           <div class="col-md-4">
-            <label class="form-label">2. เรื่อง / คำร้อง</label>
+            <label class="form-label fw-bold">2. เรื่อง / คำร้อง</label>
             <select id="subject" class="form-select" required>
               <option value="ยื่นคำร้องขอประกันตัว">ยื่นคำร้องขอประกันตัว</option>
               <option value="ยื่นคำร้องขอปล่อยชั่วคราว">ยื่นคำร้องขอปล่อยชั่วคราว</option>
-              <!-- สามารถเพิ่มรายการ <option value="..."> เพิ่มเติมตรงนี้ได้เลยครับ -->
             </select>
           </div>
           <div class="col-md-4">
-            <label class="form-label">ส่วนงานที่รับเอกสาร</label>
+            <label class="form-label fw-bold">ส่วนงานที่รับเอกสาร</label>
             <select id="department" class="form-select" required>
               <option value="ส่วนช่วยอำนวยการ">ส่วนช่วยอำนวยการ</option>
               <option value="ส่วนงานประชาสัมพันธ์และบริการประชาชน">ส่วนงานประชาสัมพันธ์และบริการประชาชน</option>
@@ -42,7 +70,7 @@
             </select>
           </div>
           <div class="col-md-4">
-            <label class="form-label">3. สถานะเริ่มต้น</label>
+            <label class="form-label fw-bold">3. สถานะเริ่มต้น</label>
             <select id="status" class="form-select" required>
               <option value="เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ">เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ</option>
               <option value="ผู้พิพากษาพิจารณาคำร้อง">ผู้พิพากษาพิจารณาคำร้อง</option>
@@ -52,37 +80,22 @@
             </select>
           </div>
           <div class="col-md-8">
-            <label class="form-label">4. Memo (แจ้งข้อมูลเพิ่มเติม)</label>
+            <label class="form-label fw-bold">4. Memo (แจ้งข้อมูลเพิ่มเติม)</label>
             <input type="text" id="memo" class="form-control" placeholder="ข้อความแจ้งประชาชนเพิ่มเติม (ถ้ามี)">
           </div>
           <div class="col-12 text-end">
-            <button type="submit" id="submitBtn" class="btn btn-success px-4">➕ สร้างรายการคิว</button>
+            <button type="submit" id="submitBtn" class="btn btn-success px-4 fw-bold">➕ สร้างรายการคิว</button>
           </div>
         </form>
       </div>
     </div>
 
-    <!-- ตารางรายการคิวเพื่ออัปเดต/ลบสถานะ -->
-    <div class="card shadow-sm">
-      <div class="card-header bg-dark text-white fw-bold">รายการคิวทั้งหมดของวันนี้</div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-              <tr>
-                <th style="width: 10%;">เวลา</th>
-                <th style="width: 18%;">ชื่อผู้ติดต่อ</th>
-                <th style="width: 18%;">เรื่อง</th>
-                <th style="width: 14%;">ส่วนงาน</th>
-                <th style="width: 18%;">สถานะ / Memo</th>
-                <th style="width: 10%;">เวลาที่ใช้</th>
-                <th style="width: 12%;" class="text-center">จัดการ</th>
-              </tr>
-            </thead>
-            <tbody id="adminTableBody">
-              <tr><td colspan="7" class="text-center py-4 text-muted">กำลังโหลดข้อมูลคิวงาน...</td></tr>
-            </tbody>
-          </table>
+    <!-- ส่วนแสดง Card รายการคิวทั้งหมด -->
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-dark text-white fw-bold py-3">📋 รายการคิวทั้งหมดของวันนี้</div>
+      <div class="card-body p-3 bg-light">
+        <div id="adminCardList" class="row g-3">
+          <div class="col-12 text-center py-5 text-muted">กำลังโหลดข้อมูลคิวงาน...</div>
         </div>
       </div>
     </div>
@@ -161,11 +174,11 @@
     );
     
     onSnapshot(q, (snapshot) => {
-      const tbody = document.getElementById('adminTableBody');
-      tbody.innerHTML = '';
+      const cardContainer = document.getElementById('adminCardList');
+      cardContainer.innerHTML = '';
       
       if (snapshot.empty) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">ยังไม่มีรายการคำร้องในวันนี้</td></tr>';
+        cardContainer.innerHTML = '<div class="col-12 text-center py-5 text-muted">ยังไม่มีรายการคำร้องในวันนี้</div>';
         return;
       }
 
@@ -176,46 +189,65 @@
         const isCompleted = item.completed_at !== null && item.completed_at !== undefined;
         const displayDuration = item.total_duration || formatDuration(item.created_at, item.completed_at);
 
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${timeStr} น.</td>
-          <td><b>${item.customer_name}</b></td>
-          <td>${item.subject}</td>
-          <td><small class="badge bg-secondary">${item.department}</small></td>
-          <td>
-            <select class="form-select form-select-sm mb-1" onchange="updateStatus('${docId}', this.value)">
-              <option value="เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ" ${item.status === 'เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ' ? 'selected' : ''}>เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ</option>
-              <option value="ผู้พิพากษาพิจารณาคำร้อง" ${item.status === 'ผู้พิพากษาพิจารณาคำร้อง' ? 'selected' : ''}>ผู้พิพากษาพิจารณาคำร้อง</option>
-              <option value="ผู้พิพากษามีคำสั่งแล้ว" ${item.status === 'ผู้พิพากษามีคำสั่งแล้ว' ? 'selected' : ''}>ผู้พิพากษามีคำสั่งแล้ว</option>
-              <option value="นำเอกสารเข้าสำนวนแล้ว" ${item.status === 'นำเอกสารเข้าสำนวนแล้ว' ? 'selected' : ''}>นำเอกสารเข้าสำนวนแล้ว</option>
-              <option value="คืนเอกสาร" ${item.status === 'คืนเอกสาร' ? 'selected' : ''}>คืนเอกสาร</option>
-            </select>
-            <input type="text" class="form-control form-control-sm" value="${item.memo || ''}" placeholder="แก้ไข Memo" onblur="updateMemo('${docId}', this.value)">
-          </td>
-          <td>
-            <span class="badge ${isCompleted ? 'bg-success' : 'bg-warning text-dark'}">
-              ${displayDuration}
-            </span>
-          </td>
-          <td class="text-center">
-            ${!isCompleted ? `
-              <button class="btn btn-success btn-sm mb-1 w-100" onclick="finishQueue('${docId}', '${item.created_at}')">
-                ✅ เสร็จสิ้น
-              </button>
-            ` : `
-              <span class="badge bg-secondary mb-1">ปิดงานแล้ว</span>
-            `}
-            <button class="btn btn-outline-danger btn-sm w-100" onclick="deleteQueue('${docId}', '${item.customer_name}')">
-              🗑️ ลบ
-            </button>
-          </td>
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'col-12 col-md-6 col-lg-4';
+        cardDiv.innerHTML = `
+          <div class="admin-card p-3 h-100 d-flex flex-column justify-content-between">
+            <div>
+              <!-- หัวการ์ด: เวลาและส่วนงาน -->
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="time-badge">🕒 ยื่นเมื่อ ${timeStr} น.</span>
+                <span class="badge bg-secondary">${item.department}</span>
+              </div>
+
+              <!-- รายละเอียดผู้ติดต่อ -->
+              <h5 class="fw-bold text-dark mb-1">${item.customer_name}</h5>
+              <p class="text-primary small mb-3 fw-semibold">📄 ${item.subject}</p>
+
+              <!-- การจัดการสถานะ -->
+              <div class="mb-2">
+                <label class="form-label small text-muted mb-1 fw-bold">อัปเดตสถานะ:</label>
+                <select class="form-select form-select-sm mb-2" onchange="updateStatus('${docId}', this.value)">
+                  <option value="เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ" ${item.status === 'เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ' ? 'selected' : ''}>เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ</option>
+                  <option value="ผู้พิพากษาพิจารณาคำร้อง" ${item.status === 'ผู้พิพากษาพิจารณาคำร้อง' ? 'selected' : ''}>ผู้พิพากษาพิจารณาคำร้อง</option>
+                  <option value="ผู้พิพากษามีคำสั่งแล้ว" ${item.status === 'ผู้พิพากษามีคำสั่งแล้ว' ? 'selected' : ''}>ผู้พิพากษามีคำสั่งแล้ว</option>
+                  <option value="นำเอกสารเข้าสำนวนแล้ว" ${item.status === 'นำเอกสารเข้าสำนวนแล้ว' ? 'selected' : ''}>นำเอกสารเข้าสำนวนแล้ว</option>
+                  <option value="คืนเอกสาร" ${item.status === 'คืนเอกสาร' ? 'selected' : ''}>คืนเอกสาร</option>
+                </select>
+                <input type="text" class="form-control form-control-sm" value="${item.memo || ''}" placeholder="ระบุ Memo หรือข้อความแจ้งเตือน" onblur="updateMemo('${docId}', this.value)">
+              </div>
+            </div>
+
+            <!-- ส่วนท้ายการ์ด: ตัวนับเวลาและปุ่มจัดการ -->
+            <div class="pt-2 border-top mt-3">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="text-muted fw-bold">ระยะเวลาที่ใช้ไป:</small>
+                <span class="badge ${isCompleted ? 'bg-success' : 'bg-warning text-dark'} duration-badge">
+                  ${displayDuration}
+                </span>
+              </div>
+              
+              <div class="d-flex gap-2">
+                ${!isCompleted ? `
+                  <button class="btn btn-success btn-sm flex-fill fw-bold" onclick="finishQueue('${docId}', '${item.created_at}')">
+                    ✅ เสร็จสิ้น
+                  </button>
+                ` : `
+                  <span class="badge bg-secondary flex-fill d-flex align-items-center justify-content-center">ปิดงานแล้ว</span>
+                `}
+                <button class="btn btn-outline-danger btn-sm" onclick="deleteQueue('${docId}', '${item.customer_name}')">
+                  🗑️ ลบ
+                </button>
+              </div>
+            </div>
+          </div>
         `;
-        tbody.appendChild(tr);
+        cardContainer.appendChild(cardDiv);
       });
     }, (error) => {
       console.error("Firestore Error:", error);
-      const tbody = document.getElementById('adminTableBody');
-      tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
+      const cardContainer = document.getElementById('adminCardList');
+      cardContainer.innerHTML = `<div class="col-12 text-center py-5 text-danger">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>`;
     });
 
     // ฟังก์ชันอัปเดตเฉพาะสถานะ
