@@ -52,8 +52,8 @@
       box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.5);
     }
     .badge-status {
-      font-size: 0.9rem;
-      padding: 6px 12px;
+      font-size: 0.95rem;
+      padding: 8px 16px;
       border-radius: 20px;
       font-weight: 600;
     }
@@ -64,10 +64,6 @@
       border-radius: 6px;
       font-size: 0.85rem;
       font-weight: 600;
-    }
-    .duration-badge {
-      font-size: 0.9rem;
-      font-weight: 700;
     }
     .memo-box {
       background-color: rgba(51, 65, 85, 0.5);
@@ -142,19 +138,6 @@
       renderQueueCards();
     });
 
-    function calculateDuration(createdAt, completedAt) {
-      if (!createdAt) return '-';
-      const start = new Date(createdAt);
-      const end = completedAt ? new Date(completedAt) : new Date();
-      const diffSec = Math.max(0, Math.floor((end - start) / 1000));
-      
-      const hours = Math.floor(diffSec / 3600);
-      const minutes = Math.floor((diffSec % 3600) / 60);
-      const seconds = diffSec % 60;
-      
-      return `${hours > 0 ? hours + ' ชม. ' : ''}${minutes} นาที ${seconds} วิ`;
-    }
-
     function renderQueueCards() {
       const container = document.getElementById('queueList');
 
@@ -174,8 +157,7 @@
 
       container.innerHTML = filteredData.map(item => {
         const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-        const isDone = item.completed_at !== null && item.completed_at !== undefined;
-        const durationText = item.total_duration || calculateDuration(item.created_at, item.completed_at);
+        const isDone = item.status === 'เสร็จสิ้น' || (item.completed_at !== null && item.completed_at !== undefined);
 
         return `
           <div class="col-12 col-md-6 col-lg-4">
@@ -192,39 +174,17 @@
                 ${item.memo ? `<div class="memo-box text-warning mb-2">📌 ${item.memo}</div>` : ''}
               </div>
 
-              <div class="pt-2 border-top border-secondary mt-2 d-flex justify-content-between align-items-center">
-                <div>
-                  <span class="badge badge-status ${isDone ? 'bg-info text-dark' : 'bg-warning text-dark'}">
-                    ${item.status}
-                  </span>
-                </div>
-                <div class="text-end">
-                  <small class="d-block ${isDone ? 'text-white fw-bold' : 'text-muted'}" style="font-size: 0.75rem;">
-                    ${isDone ? '✅ เสร็จสิ้น (ใช้เวลา)' : 'ระยะเวลาที่ใช้'}
-                  </small>
-                  <span class="duration-badge ${isDone ? 'text-success' : 'text-warning'}" id="timer-${item.id}">
-                    ${durationText}
-                  </span>
-                </div>
+              <!-- แสดงเฉพาะสถานะปัจจุบัน (เอาส่วนเวลาออกทั้งหมด) -->
+              <div class="pt-2 border-top border-secondary mt-2 d-flex align-items-center">
+                <span class="badge badge-status ${isDone ? 'bg-success text-white' : 'bg-warning text-dark'}">
+                  ${item.status}
+                </span>
               </div>
             </div>
           </div>
         `;
       }).join('');
     }
-
-    // ตัวอัปเดตเวลาเดินเฉพาะคิวที่ยังไม่กดเสร็จสิ้น
-    setInterval(() => {
-      rawQueueData.forEach(item => {
-        const isDone = item.completed_at !== null && item.completed_at !== undefined;
-        if (!isDone) {
-          const timerEl = document.getElementById(`timer-${item.id}`);
-          if (timerEl) {
-            timerEl.innerText = calculateDuration(item.created_at, null);
-          }
-        }
-      });
-    }, 1000);
   </script>
 </body>
 </html>
