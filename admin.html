@@ -121,6 +121,8 @@
     const d = new Date();
     const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+    let rawAdminData = [];
+
     // ฟังก์ชันคำนวณข้อความระยะเวลา
     function formatDuration(createdAt, completedAt) {
       if (!createdAt) return '-';
@@ -174,17 +176,24 @@
     );
     
     onSnapshot(q, (snapshot) => {
+      rawAdminData = [];
+      snapshot.forEach((doc) => {
+        rawAdminData.push({ id: doc.id, ...doc.data() });
+      });
+      renderAdminCards();
+    });
+
+    function renderAdminCards() {
       const cardContainer = document.getElementById('adminCardList');
       cardContainer.innerHTML = '';
       
-      if (snapshot.empty) {
+      if (rawAdminData.length === 0) {
         cardContainer.innerHTML = '<div class="col-12 text-center py-5 text-muted">ยังไม่มีรายการคำร้องในวันนี้</div>';
         return;
       }
 
-      snapshot.forEach((documentSnap) => {
-        const item = documentSnap.data();
-        const docId = documentSnap.id;
+      rawAdminData.forEach((item) => {
+        const docId = item.id;
         const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
         const isCompleted = item.completed_at !== null && item.completed_at !== undefined;
         const displayDuration = item.total_duration || formatDuration(item.created_at, item.completed_at);
@@ -194,17 +203,14 @@
         cardDiv.innerHTML = `
           <div class="admin-card p-3 h-100 d-flex flex-column justify-content-between">
             <div>
-              <!-- หัวการ์ด: เวลาและส่วนงาน -->
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <span class="time-badge">🕒 ยื่นเมื่อ ${timeStr} น.</span>
                 <span class="badge bg-secondary">${item.department}</span>
               </div>
 
-              <!-- รายละเอียดผู้ติดต่อ -->
               <h5 class="fw-bold text-dark mb-1">${item.customer_name}</h5>
               <p class="text-primary small mb-3 fw-semibold">📄 ${item.subject}</p>
 
-              <!-- การจัดการสถานะ -->
               <div class="mb-2">
                 <label class="form-label small text-muted mb-1 fw-bold">อัปเดตสถานะ:</label>
                 <select class="form-select form-select-sm mb-2" onchange="updateStatus('${docId}', this.value)">
@@ -218,11 +224,10 @@
               </div>
             </div>
 
-            <!-- ส่วนท้ายการ์ด: ตัวนับเวลาและปุ่มจัดการ -->
             <div class="pt-2 border-top mt-3">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <small class="text-muted fw-bold">ระยะเวลาที่ใช้ไป:</small>
-                <span class="badge ${isCompleted ? 'bg-success' : 'bg-warning text-dark'} duration-badge">
+                <span class="badge ${isCompleted ? 'bg-success' : 'bg-warning text-dark'} duration-badge" id="admin-timer-${docId}">
                   ${displayDuration}
                 </span>
               </div>
@@ -244,11 +249,20 @@
         `;
         cardContainer.appendChild(cardDiv);
       });
-    }, (error) => {
-      console.error("Firestore Error:", error);
-      const cardContainer = document.getElementById('adminCardList');
-      cardContainer.innerHTML = `<div class="col-12 text-center py-5 text-danger">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>`;
-    });
+    }
+
+    // ตัวอัปเดตเวลาเดิน Realtime บนหน้า admin สำหรับรายการที่ยังไม่เสร็จสิ้น
+    setInterval(() => {
+      rawAdminData.forEach(item => {
+        const isCompleted = item.completed_at !== null && item.completed_at !== undefined;
+        if (!isCompleted) {
+          const timerEl = document.getElementById(`admin-timer-${item.id}`);
+          if (timerEl) {
+            timerEl.innerText = formatDuration(item.created_at, null);
+          }
+        }
+      });
+    }, 1000);
 
     // ฟังก์ชันอัปเดตเฉพาะสถานะ
     window.updateStatus = async (docId, newStatus) => {
