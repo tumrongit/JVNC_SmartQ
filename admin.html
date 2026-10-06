@@ -59,4 +59,170 @@
     </div>
 
     <!-- ตารางรายการคิวเพื่ออัปเดต/ลบสถานะ -->
-    <div class
+    <div class="card shadow-sm">
+      <div class="card-header bg-dark text-white fw-bold">รายการคิวทั้งหมดของวันนี้</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 10%;">เวลา</th>
+                <th style="width: 18%;">ชื่อผู้ติดต่อ</th>
+                <th style="width: 18%;">เรื่อง</th>
+                <th style="width: 14%;">ส่วนงาน</th>
+                <th style="width: 18%;">สถานะ / Memo</th>
+                <th style="width: 10%;">เวลาที่ใช้</th>
+                <th style="width: 12%;" class="text-center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="adminTableBody">
+              <!-- ข้อมูลดึงมาใส่ด้วย JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, query, where, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDv1lkIfMQNFDq-WEWHJ-h7KVZSaatXpi0",
+      authDomain: "jvnc-smartq.firebaseapp.com",
+      projectId: "jvnc-smartq",
+      storageBucket: "jvnc-smartq.firebasestorage.app",
+      messagingSenderId: "754731006071",
+      appId: "1:754731006071:web:493042a8e10e15d405ee72"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // ฟังก์ชันคำนวณข้อความระยะเวลา
+    function formatDuration(createdAt, completedAt) {
+      if (!createdAt) return '-';
+      const start = new Date(createdAt);
+      const end = completedAt ? new Date(completedAt) : new Date();
+      const diffSec = Math.max(0, Math.floor((end - start) / 1000));
+      
+      const hours = Math.floor(diffSec / 3600);
+      const minutes = Math.floor((diffSec % 3600) / 60);
+      const seconds = diffSec % 60;
+      
+      return `${hours > 0 ? hours + ' ชม. ' : ''}${minutes} นาที ${seconds} วิ`;
+    }
+
+    // เพิ่มคิวใหม่
+    document.getElementById('addQueueForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const createdAt = new Date().toISOString();
+
+      const newQueue = {
+        customer_name: document.getElementById('customer_name').value,
+        subject: document.getElementById('subject').value,
+        department: document.getElementById('department').value,
+        status: document.getElementById('status').value,
+        memo: document.getElementById('memo').value,
+        created_at: createdAt,
+        completed_at: null,
+        total_duration: null,
+        date_string: todayStr
+      };
+
+      await addDoc(collection(db, "queues"), newQueue);
+      document.getElementById('addQueueForm').reset();
+      alert('เพิ่มคิวเรียบร้อยแล้ว!');
+    });
+
+    // ดึงข้อมูลคิวมาแสดง
+    const q = query(collection(db, "queues"), where("date_string", "==", todayStr), orderBy("created_at", "desc"));
+    
+    onSnapshot(q, (snapshot) => {
+      const tbody = document.getElementById('adminTableBody');
+      tbody.innerHTML = '';
+      
+      snapshot.forEach((documentSnap) => {
+        const item = documentSnap.data();
+        const docId = documentSnap.id;
+        const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        const isCompleted = item.completed_at !== null && item.completed_at !== undefined;
+        const displayDuration = item.total_duration || formatDuration(item.created_at, item.completed_at);
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${timeStr} น.</td>
+          <td><b>${item.customer_name}</b></td>
+          <td>${item.subject}</td>
+          <td><small class="badge bg-secondary">${item.department}</small></td>
+          <td>
+            <select class="form-select form-select-sm mb-1" onchange="updateStatus('${docId}', this.value)">
+              <option value="เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ" ${item.status === 'เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ' ? 'selected' : ''}>เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ</option>
+              <option value="ผู้พิพากษาพิจารณาคำร้อง" ${item.status === 'ผู้พิพากษาพิจารณาคำร้อง' ? 'selected' : ''}>ผู้พิพากษาพิจารณาคำร้อง</option>
+              <option value="ผู้พิพากษามีคำสั่งแล้ว" ${item.status === 'ผู้พิพากษามีคำสั่งแล้ว' ? 'selected' : ''}>ผู้พิพากษามีคำสั่งแล้ว</option>
+              <option value="นำเอกสารเข้าสำนวนแล้ว" ${item.status === 'นำเอกสารเข้าสำนวนแล้ว' ? 'selected' : ''}>นำเอกสารเข้าสำนวนแล้ว</option>
+              <option value="คืนเอกสาร" ${item.status === 'คืนเอกสาร' ? 'selected' : ''}>คืนเอกสาร</option>
+            </select>
+            <input type="text" class="form-control form-control-sm" value="${item.memo || ''}" placeholder="แก้ไข Memo" onblur="updateMemo('${docId}', this.value)">
+          </td>
+          <td>
+            <span class="badge ${isCompleted ? 'bg-success' : 'bg-warning text-dark'}">
+              ${displayDuration}
+            </span>
+          </td>
+          <td class="text-center">
+            ${!isCompleted ? `
+              <button class="btn btn-success btn-sm mb-1 w-100" onclick="finishQueue('${docId}', '${item.created_at}')">
+                ✅ เสร็จสิ้น
+              </button>
+            ` : `
+              <span class="badge bg-secondary mb-1">ปิดงานแล้ว</span>
+            `}
+            <button class="btn btn-outline-danger btn-sm w-100" onclick="deleteQueue('${docId}', '${item.customer_name}')">
+              🗑️ ลบ
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    });
+
+    // ฟังก์ชันอัปเดตเฉพาะสถานะ (ไม่กระทบกับตัวจับเวลา)
+    window.updateStatus = async (docId, newStatus) => {
+      const queueRef = doc(db, "queues", docId);
+      await updateDoc(queueRef, { status: newStatus });
+    };
+
+    // ฟังก์ชันกดปุ่ม "เสร็จสิ้น" (เพื่อหยุดจับเวลาและบันทึกเวลาลงฐานข้อมูลโดยคงสถานะปัจจุบันไว้)
+    window.finishQueue = async (docId, createdAt) => {
+      if (confirm('คุณต้องการจบการทำงานคิวนี้และบันทึกเวลาใช่หรือไม่?')) {
+        const queueRef = doc(db, "queues", docId);
+        const completedAt = new Date().toISOString();
+        const durationStr = formatDuration(createdAt, completedAt);
+
+        await updateDoc(queueRef, {
+          completed_at: completedAt,
+          total_duration: durationStr // บันทึกระยะเวลารวมถาวร โดยไม่เปลี่ยนฟิลด์ status
+        });
+        alert('บันทึกการจบงานและหยุดเวลาเรียบร้อยแล้ว');
+      }
+    };
+
+    // ฟังก์ชันอัปเดต Memo
+    window.updateMemo = async (docId, newMemo) => {
+      const queueRef = doc(db, "queues", docId);
+      await updateDoc(queueRef, { memo: newMemo });
+    };
+
+    // ฟังก์ชันลบคิวงาน
+    window.deleteQueue = async (docId, name) => {
+      if (confirm(`คุณต้องการลบรายการคิวของ "${name}" ใช่หรือไม่?`)) {
+        await deleteDoc(doc(db, "queues", docId));
+        alert('ลบรายการคิวเรียบร้อยแล้ว');
+      }
+    };
+  </script>
+</body>
+</html>
