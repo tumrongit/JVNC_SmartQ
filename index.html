@@ -175,8 +175,6 @@
       container.innerHTML = filteredData.map(item => {
         const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
         const isDone = item.completed_at !== null && item.completed_at !== undefined;
-        
-        // ดึงเวลาที่บันทึกแล้วก่อน หากไม่มีค่อยคำนวณใหม่
         const durationText = item.total_duration || calculateDuration(item.created_at, item.completed_at);
 
         return `
@@ -196,12 +194,14 @@
 
               <div class="pt-2 border-top border-secondary mt-2 d-flex justify-content-between align-items-center">
                 <div>
-                  <span class="badge badge-status ${isDone ? 'bg-success text-white' : 'bg-warning text-dark'}">
+                  <span class="badge badge-status ${isDone ? 'bg-info text-dark' : 'bg-warning text-dark'}">
                     ${item.status}
                   </span>
                 </div>
                 <div class="text-end">
-                  <small class="text-muted d-block" style="font-size: 0.75rem;">ระยะเวลาที่ใช้</small>
+                  <small class="text-muted d-block" style="font-size: 0.75rem;">
+                    ${isDone ? '✅ เสร็จสิ้น (ใช้เวลา)' : 'ระยะเวลาที่ใช้'}
+                  </small>
                   <span class="duration-badge ${isDone ? 'text-success' : 'text-warning'}" id="timer-${item.id}">
                     ${durationText}
                   </span>
