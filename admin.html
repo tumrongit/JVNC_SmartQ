@@ -121,13 +121,11 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // คำนวณวันที่ตามเวลาประเทศไทย (YYYY-MM-DD)
     const d = new Date();
     const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
     let rawAdminData = [];
 
-    // ฟังก์ชันคำนวณข้อความระยะเวลา
     function formatDuration(createdAt, completedAt) {
       if (!createdAt) return '-';
       const start = new Date(createdAt);
@@ -149,15 +147,18 @@
 
       try {
         const createdAt = new Date().toISOString();
+        const initialStatus = document.getElementById('status').value;
+        const isCompleted = initialStatus === "เสร็จสิ้น";
+
         const newQueue = {
           customer_name: document.getElementById('customer_name').value,
           subject: document.getElementById('subject').value,
           department: document.getElementById('department').value,
-          status: document.getElementById('status').value,
+          status: initialStatus,
           memo: document.getElementById('memo').value,
           created_at: createdAt,
-          completed_at: null,
-          total_duration: null,
+          completed_at: isCompleted ? createdAt : null,
+          total_duration: isCompleted ? formatDuration(createdAt, createdAt) : null,
           date_string: todayStr
         };
 
@@ -172,7 +173,7 @@
       }
     });
 
-    // ดึงข้อมูลคิวมาแสดง Realtime
+    // ดึงข้อมูลคิว Realtime
     const q = query(
       collection(db, "queues"), 
       where("date_string", "==", todayStr), 
@@ -217,12 +218,11 @@
 
               <div class="mb-2">
                 <label class="form-label small text-muted mb-1 fw-bold">อัปเดตสถานะ:</label>
-                <select class="form-select form-select-sm mb-2" onchange="updateStatus('${docId}', this.value)">
+                <select class="form-select form-select-sm mb-2" onchange="updateStatus('${docId}', this.value, '${item.created_at}')">
                   <option value="เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ" ${item.status === 'เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ' ? 'selected' : ''}>เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ</option>
                   <option value="ผู้พิพากษาพิจารณาคำร้อง" ${item.status === 'ผู้พิพากษาพิจารณาคำร้อง' ? 'selected' : ''}>ผู้พิพากษาพิจารณาคำร้อง</option>
                   <option value="ผู้พิพากษามีคำสั่งแล้ว" ${item.status === 'ผู้พิพากษามีคำสั่งแล้ว' ? 'selected' : ''}>ผู้พิพากษามีคำสั่งแล้ว</option>
-                  <option value="นำเอกสารเข้าสำนวนแล้ว" ${item.status === 'นำเอกสารเข้าสำนวนแล้ว' ? 'selected' : ''}>นำเอกสารเข้าสำนวนแล้ว</option>
-                  <option value="คืนเอกสาร" ${item.status === 'คืนเอกสาร' ? 'selected' : ''}>คืนเอกสาร</option>
+                  <option value="เสร็จสิ้น" ${item.status === 'เสร็จสิ้น' ? 'selected' : ''}>เสร็จสิ้น</option>
                 </select>
                 <input type="text" class="form-control form-control-sm" value="${item.memo || ''}" placeholder="ระบุ Memo หรือข้อความแจ้งเตือน" onblur="updateMemo('${docId}', this.value)">
               </div>
@@ -255,7 +255,7 @@
       });
     }
 
-    // ตัวอัปเดตเวลาเดิน Realtime บนหน้า admin สำหรับรายการที่ยังไม่เสร็จสิ้น
+    // อัปเดตเวลาเดิน Realtime บน admin
     setInterval(() => {
       rawAdminData.forEach(item => {
         const isCompleted = item.completed_at !== null && item.completed_at !== undefined;
@@ -268,13 +268,27 @@
       });
     }, 1000);
 
-    // ฟังก์ชันอัปเดตเฉพาะสถานะ
-    window.updateStatus = async (docId, newStatus) => {
+    // อัปเดตสถานะ (หากเลือกเป็นเสร็จสิ้นจะล็อกเวลาถาวร)
+    window.updateStatus = async (docId, newStatus, createdAt) => {
       const queueRef = doc(db, "queues", docId);
-      await updateDoc(queueRef, { status: newStatus });
+      if (newStatus === "เสร็จสิ้น") {
+        const completedAt = new Date().toISOString();
+        const durationStr = formatDuration(createdAt, completedAt);
+        await updateDoc(queueRef, {
+          status: newStatus,
+          completed_at: completedAt,
+          total_duration: durationStr
+        });
+      } else {
+        await updateDoc(queueRef, { 
+          status: newStatus,
+          completed_at: null,
+          total_duration: null
+        });
+      }
     };
 
-    // ฟังก์ชันกดปุ่ม "เสร็จสิ้น"
+    // กดปุ่ม "เสร็จสิ้น"
     window.finishQueue = async (docId, createdAt) => {
       if (confirm('คุณต้องการจบการทำงานคิวนี้และบันทึกเวลาใช่หรือไม่?')) {
         const queueRef = doc(db, "queues", docId);
@@ -282,20 +296,19 @@
         const durationStr = formatDuration(createdAt, completedAt);
 
         await updateDoc(queueRef, {
+          status: "เสร็จสิ้น",
           completed_at: completedAt,
           total_duration: durationStr
         });
-        alert('บันทึกการจบงานและหยุดเวลาเรียบร้อยแล้ว');
+        alert('บันทึกการจบงานเรียบร้อยแล้ว');
       }
     };
 
-    // ฟังก์ชันอัปเดต Memo
     window.updateMemo = async (docId, newMemo) => {
       const queueRef = doc(db, "queues", docId);
       await updateDoc(queueRef, { memo: newMemo });
     };
 
-    // ฟังก์ชันลบคิวงาน
     window.deleteQueue = async (docId, name) => {
       if (confirm(`คุณต้องการลบรายการคิวของ "${name}" ใช่หรือไม่?`)) {
         await deleteDoc(doc(db, "queues", docId));
