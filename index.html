@@ -40,7 +40,6 @@
     .search-input::placeholder {
       color: #94a3b8;
     }
-    /* Style สำหรับ Card คิว */
     .queue-card {
       background-color: #1e293b;
       border: 1px solid #334155;
@@ -81,20 +80,17 @@
 </head>
 <body>
 
-  <!-- ส่วนหัวแสดงชื่อศาล วันที่ และช่องค้นหา -->
   <div class="header-board text-center">
     <h3 class="fw-bold text-warning mb-1">🏛️ สถานะคำร้องและการดำเนินงาน</h3>
     <p class="text-light opacity-75 mb-3" style="font-size: 0.95rem;">
       ศาลเยาวชนและครอบครัวกลาง (ประจำวันที่: <span id="currentDate">-</span>)
     </p>
 
-    <!-- ช่องค้นหาชื่อผู้มาติดต่อ -->
     <div class="search-box px-2">
       <input type="text" id="searchInput" class="form-control search-input text-center" placeholder="🔍 พิมพ์ชื่อของคุณเพื่อค้นหาคิว...">
     </div>
   </div>
 
-  <!-- ส่วนแสดงการ์ดรายการคิว -->
   <div class="container px-3 pb-5">
     <div id="queueList" class="row g-3">
       <div class="col-12 text-center py-5 text-muted">
@@ -120,7 +116,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // หาวันที่ปัจจุบัน (ไทย)
     const d = new Date();
     const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     document.getElementById('currentDate').innerText = d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -128,13 +123,11 @@
     let rawQueueData = [];
     let filterKeyword = "";
 
-    // ฟังการพิมพ์ค้นหา
     document.getElementById('searchInput').addEventListener('input', (e) => {
       filterKeyword = e.target.value.trim().toLowerCase();
       renderQueueCards();
     });
 
-    // ดึงข้อมูล Realtime
     const q = query(
       collection(db, "queues"),
       where("date_string", "==", todayStr),
@@ -149,7 +142,6 @@
       renderQueueCards();
     });
 
-    // ฟังก์ชันคำนวณระยะเวลา
     function calculateDuration(createdAt, completedAt) {
       if (!createdAt) return '-';
       const start = new Date(createdAt);
@@ -163,11 +155,9 @@
       return `${hours > 0 ? hours + ' ชม. ' : ''}${minutes} นาที ${seconds} วิ`;
     }
 
-    // ฟังก์ชันวาด Card รายการ
     function renderQueueCards() {
       const container = document.getElementById('queueList');
 
-      // กรองด้วยชื่อ
       const filteredData = rawQueueData.filter(item => 
         (item.customer_name || '').toLowerCase().includes(filterKeyword)
       );
@@ -185,27 +175,25 @@
       container.innerHTML = filteredData.map(item => {
         const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
         const isDone = item.completed_at !== null && item.completed_at !== undefined;
+        
+        // ดึงเวลาที่บันทึกแล้วก่อน หากไม่มีค่อยคำนวณใหม่
         const durationText = item.total_duration || calculateDuration(item.created_at, item.completed_at);
 
         return `
           <div class="col-12 col-md-6 col-lg-4">
             <div class="queue-card p-3 h-100 d-flex flex-column justify-content-between">
               <div>
-                <!-- ส่วนแถบบน: เวลา และส่วนงาน -->
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <span class="time-badge">🕒 ยื่นเมื่อ ${timeStr} น.</span>
                   <span class="badge bg-secondary opacity-75">${item.department}</span>
                 </div>
 
-                <!-- ชื่อ และ เรื่อง -->
                 <h5 class="fw-bold text-white mb-1">${item.customer_name}</h5>
                 <p class="text-info small mb-2">📄 ${item.subject}</p>
 
-                <!-- Memo ถ้ามี -->
                 ${item.memo ? `<div class="memo-box text-warning mb-2">📌 ${item.memo}</div>` : ''}
               </div>
 
-              <!-- ส่วนล่าง: สถานะ และ เวลาที่ใช้ไป -->
               <div class="pt-2 border-top border-secondary mt-2 d-flex justify-content-between align-items-center">
                 <div>
                   <span class="badge badge-status ${isDone ? 'bg-success text-white' : 'bg-warning text-dark'}">
@@ -214,7 +202,7 @@
                 </div>
                 <div class="text-end">
                   <small class="text-muted d-block" style="font-size: 0.75rem;">ระยะเวลาที่ใช้</small>
-                  <span class="duration-badge ${isDone ? 'text-muted' : 'text-warning'}" id="timer-${item.id}">
+                  <span class="duration-badge ${isDone ? 'text-success' : 'text-warning'}" id="timer-${item.id}">
                     ${durationText}
                   </span>
                 </div>
@@ -225,7 +213,7 @@
       }).join('');
     }
 
-    // อัปเดตตัวเลขเวลาเดินแบบ Realtime (สำหรับคิวที่ยังไม่กดเสร็จสิ้น)
+    // ตัวอัปเดตเวลาเดินเฉพาะคิวที่ยังไม่กดเสร็จสิ้น
     setInterval(() => {
       rawQueueData.forEach(item => {
         const isDone = item.completed_at !== null && item.completed_at !== undefined;
