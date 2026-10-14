@@ -21,6 +21,14 @@
     .admin-card:hover {
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
+    .queue-num-badge {
+      background-color: #0284c7;
+      color: #ffffff;
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 8px;
+    }
     .time-badge {
       background-color: #e0f2fe;
       color: #0369a1;
@@ -107,7 +115,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, query, where, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, query, where, onSnapshot, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDv1lkIfMQNFDq-WEWHJ-h7KVZSaatXpi0",
@@ -139,7 +147,7 @@
       return `${hours > 0 ? hours + ' ชม. ' : ''}${minutes} นาที ${seconds} วิ`;
     }
 
-    // เพิ่มคิวใหม่
+    // เพิ่มคิวใหม่ พร้อมสร้างเลขคิวรันอัตโนมัติประจำวัน
     document.getElementById('addQueueForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const submitBtn = document.getElementById('submitBtn');
@@ -150,7 +158,15 @@
         const initialStatus = document.getElementById('status').value;
         const isCompleted = initialStatus === "เสร็จสิ้น";
 
+        // ดึงคิววันนี้เพื่อหาจำนวนลำดับล่าสุด
+        const todayQuery = query(collection(db, "queues"), where("date_string", "==", todayStr));
+        const snapshotToday = await getDocs(todayQuery);
+        const nextQueueSeq = snapshotToday.size + 1;
+        const queueNumber = `Q-${String(nextQueueSeq).padStart(3, '0')}`;
+
         const newQueue = {
+          queue_number: queueNumber,
+          queue_seq: nextQueueSeq,
           customer_name: document.getElementById('customer_name').value,
           subject: document.getElementById('subject').value,
           department: document.getElementById('department').value,
@@ -164,7 +180,7 @@
 
         await addDoc(collection(db, "queues"), newQueue);
         document.getElementById('addQueueForm').reset();
-        alert('เพิ่มคิวเรียบร้อยแล้ว!');
+        alert(`สร้างคิวเรียบร้อย! หมายเลขคิวของคุณคือ: ${queueNumber}`);
       } catch (err) {
         console.error("เกิดข้อผิดพลาดในการบันทึก:", err);
         alert('ไม่สามารถบันทึกข้อมูลได้: ' + err.message);
@@ -202,6 +218,7 @@
         const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
         const isCompleted = item.completed_at !== null && item.completed_at !== undefined;
         const displayDuration = item.total_duration || formatDuration(item.created_at, item.completed_at);
+        const qNum = item.queue_number || '-';
 
         const cardDiv = document.createElement('div');
         cardDiv.className = 'col-12 col-md-6 col-lg-4';
@@ -209,11 +226,14 @@
           <div class="admin-card p-3 h-100 d-flex flex-column justify-content-between">
             <div>
               <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="time-badge">🕒 ยื่นเมื่อ ${timeStr} น.</span>
+                <span class="queue-num-badge">🏷️ ${qNum}</span>
                 <span class="badge bg-secondary">${item.department}</span>
               </div>
 
-              <h5 class="fw-bold text-dark mb-1">${item.customer_name}</h5>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="fw-bold text-dark mb-0">${item.customer_name}</h5>
+                <span class="time-badge">🕒 ${timeStr} น.</span>
+              </div>
               <p class="text-primary small mb-3 fw-semibold">📄 ${item.subject}</p>
 
               <div class="mb-2">
@@ -268,7 +288,7 @@
       });
     }, 1000);
 
-    // อัปเดตสถานะ (หากเลือกเป็นเสร็จสิ้นจะล็อกเวลาถาวร)
+    // อัปเดตสถานะ
     window.updateStatus = async (docId, newStatus, createdAt) => {
       const queueRef = doc(db, "queues", docId);
       if (newStatus === "เสร็จสิ้น") {
