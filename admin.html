@@ -11,6 +11,10 @@
       background-color: #f8fafc;
       font-family: 'Sarabun', sans-serif;
     }
+    .login-container {
+      max-width: 400px;
+      margin: 80px auto;
+    }
     .admin-card {
       background-color: #ffffff;
       border: 1px solid #e2e8f0;
@@ -45,8 +49,30 @@
 </head>
 <body>
 
-  <div class="container py-4">
-    <h3 class="mb-4 text-primary fw-bold">🛠️ บันทึกและจัดการสถานะคำร้อง (เจ้าหน้าที่)</h3>
+  <!-- 1. ส่วนหน้าต่างยืนยันรหัสผ่าน (แสดงเมื่อยังไม่ได้เข้าสู่ระบบ) -->
+  <div id="loginSection" class="container login-container">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-primary text-white text-center py-3 fw-bold fs-5">
+        🔐 ระบบจัดการคิว (เจ้าหน้าที่)
+      </div>
+      <div class="card-body p-4 text-center">
+        <p class="text-muted small mb-3">กรุณาระบุรหัสผ่านเพื่อเข้าสู่ระบบจัดการคิว</p>
+        <form id="loginForm">
+          <div class="mb-3">
+            <input type="password" id="passInput" class="form-control text-center form-control-lg" placeholder="ป้อนรหัสผ่าน..." required autofocus>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 btn-lg fw-bold">เข้าสู่ระบบ</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. ส่วนแผงควบคุมหลัก (จะซ่อนไว้ก่อน ปลดล็อกเมื่อใส่รหัสผ่านถูกต้อง) -->
+  <div id="adminMainContent" class="container py-4" style="display: none;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h3 class="text-primary fw-bold mb-0">🛠️ บันทึกและจัดการสถานะคำร้อง (เจ้าหน้าที่)</h3>
+      <button class="btn btn-outline-danger btn-sm fw-bold" onclick="logoutAdmin()">🔒 ออกจากระบบ</button>
+    </div>
 
     <!-- ฟอร์มสร้างคิวใหม่ -->
     <div class="card shadow-sm mb-4 border-0">
@@ -129,212 +155,251 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    const d = new Date();
-    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    // --- ส่วนการตรวจสอบรหัสผ่าน (Authentication System) ---
+    const ADMIN_PASSWORD = "jvncq";
 
-    let rawAdminData = [];
-
-    function formatDuration(createdAt, completedAt) {
-      if (!createdAt) return '-';
-      const start = new Date(createdAt);
-      const end = completedAt ? new Date(completedAt) : new Date();
-      const diffSec = Math.max(0, Math.floor((end - start) / 1000));
-      
-      const hours = Math.floor(diffSec / 3600);
-      const minutes = Math.floor((diffSec % 3600) / 60);
-      const seconds = diffSec % 60;
-      
-      return `${hours > 0 ? hours + ' ชม. ' : ''}${minutes} นาที ${seconds} วิ`;
-    }
-
-    // เพิ่มคิวใหม่ พร้อมสร้างเลขคิวรันอัตโนมัติประจำวัน
-    document.getElementById('addQueueForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const submitBtn = document.getElementById('submitBtn');
-      submitBtn.disabled = true;
-
-      try {
-        const createdAt = new Date().toISOString();
-        const initialStatus = document.getElementById('status').value;
-        const isCompleted = initialStatus === "เสร็จสิ้น";
-
-        // ดึงคิววันนี้เพื่อหาจำนวนลำดับล่าสุด
-        const todayQuery = query(collection(db, "queues"), where("date_string", "==", todayStr));
-        const snapshotToday = await getDocs(todayQuery);
-        const nextQueueSeq = snapshotToday.size + 1;
-        const queueNumber = `Q-${String(nextQueueSeq).padStart(3, '0')}`;
-
-        const newQueue = {
-          queue_number: queueNumber,
-          queue_seq: nextQueueSeq,
-          customer_name: document.getElementById('customer_name').value,
-          subject: document.getElementById('subject').value,
-          department: document.getElementById('department').value,
-          status: initialStatus,
-          memo: document.getElementById('memo').value,
-          created_at: createdAt,
-          completed_at: isCompleted ? createdAt : null,
-          total_duration: isCompleted ? formatDuration(createdAt, createdAt) : null,
-          date_string: todayStr
-        };
-
-        await addDoc(collection(db, "queues"), newQueue);
-        document.getElementById('addQueueForm').reset();
-        alert(`สร้างคิวเรียบร้อย! หมายเลขคิวของคุณคือ: ${queueNumber}`);
-      } catch (err) {
-        console.error("เกิดข้อผิดพลาดในการบันทึก:", err);
-        alert('ไม่สามารถบันทึกข้อมูลได้: ' + err.message);
-      } finally {
-        submitBtn.disabled = false;
-      }
-    });
-
-    // ดึงข้อมูลคิว Realtime
-    const q = query(
-      collection(db, "queues"), 
-      where("date_string", "==", todayStr), 
-      orderBy("created_at", "desc")
-    );
-    
-    onSnapshot(q, (snapshot) => {
-      rawAdminData = [];
-      snapshot.forEach((doc) => {
-        rawAdminData.push({ id: doc.id, ...doc.data() });
-      });
-      renderAdminCards();
-    });
-
-    function renderAdminCards() {
-      const cardContainer = document.getElementById('adminCardList');
-      cardContainer.innerHTML = '';
-      
-      if (rawAdminData.length === 0) {
-        cardContainer.innerHTML = '<div class="col-12 text-center py-5 text-muted">ยังไม่มีรายการคำร้องในวันนี้</div>';
-        return;
-      }
-
-      rawAdminData.forEach((item) => {
-        const docId = item.id;
-        const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-        const isCompleted = item.completed_at !== null && item.completed_at !== undefined;
-        const displayDuration = item.total_duration || formatDuration(item.created_at, item.completed_at);
-        const qNum = item.queue_number || '-';
-
-        const cardDiv = document.createElement('div');
-        cardDiv.className = 'col-12 col-md-6 col-lg-4';
-        cardDiv.innerHTML = `
-          <div class="admin-card p-3 h-100 d-flex flex-column justify-content-between">
-            <div>
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="queue-num-badge">🏷️ ${qNum}</span>
-                <span class="badge bg-secondary">${item.department}</span>
-              </div>
-
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="fw-bold text-dark mb-0">${item.customer_name}</h5>
-                <span class="time-badge">🕒 ${timeStr} น.</span>
-              </div>
-              <p class="text-primary small mb-3 fw-semibold">📄 ${item.subject}</p>
-
-              <div class="mb-2">
-                <label class="form-label small text-muted mb-1 fw-bold">อัปเดตสถานะ:</label>
-                <select class="form-select form-select-sm mb-2" onchange="updateStatus('${docId}', this.value, '${item.created_at}')">
-                  <option value="เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ" ${item.status === 'เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ' ? 'selected' : ''}>เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ</option>
-                  <option value="ผู้พิพากษาพิจารณาคำร้อง" ${item.status === 'ผู้พิพากษาพิจารณาคำร้อง' ? 'selected' : ''}>ผู้พิพากษาพิจารณาคำร้อง</option>
-                  <option value="ผู้พิพากษามีคำสั่งแล้ว" ${item.status === 'ผู้พิพากษามีคำสั่งแล้ว' ? 'selected' : ''}>ผู้พิพากษามีคำสั่งแล้ว</option>
-                  <option value="เสร็จสิ้น" ${item.status === 'เสร็จสิ้น' ? 'selected' : ''}>เสร็จสิ้น</option>
-                </select>
-                <input type="text" class="form-control form-control-sm" value="${item.memo || ''}" placeholder="ระบุ Memo หรือข้อความแจ้งเตือน" onblur="updateMemo('${docId}', this.value)">
-              </div>
-            </div>
-
-            <div class="pt-2 border-top mt-3">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <small class="text-muted fw-bold">ระยะเวลาที่ใช้ไป:</small>
-                <span class="badge ${isCompleted ? 'bg-success' : 'bg-warning text-dark'} duration-badge" id="admin-timer-${docId}">
-                  ${displayDuration}
-                </span>
-              </div>
-              
-              <div class="d-flex gap-2">
-                ${!isCompleted ? `
-                  <button class="btn btn-success btn-sm flex-fill fw-bold" onclick="finishQueue('${docId}', '${item.created_at}')">
-                    ✅ เสร็จสิ้น
-                  </button>
-                ` : `
-                  <span class="badge bg-secondary flex-fill d-flex align-items-center justify-content-center">ปิดงานแล้ว</span>
-                `}
-                <button class="btn btn-outline-danger btn-sm" onclick="deleteQueue('${docId}', '${item.customer_name}')">
-                  🗑️ ลบ
-                </button>
-              </div>
-            </div>
-          </div>
-        `;
-        cardContainer.appendChild(cardDiv);
-      });
-    }
-
-    // อัปเดตเวลาเดิน Realtime บน admin
-    setInterval(() => {
-      rawAdminData.forEach(item => {
-        const isCompleted = item.completed_at !== null && item.completed_at !== undefined;
-        if (!isCompleted) {
-          const timerEl = document.getElementById(`admin-timer-${item.id}`);
-          if (timerEl) {
-            timerEl.innerText = formatDuration(item.created_at, null);
-          }
-        }
-      });
-    }, 1000);
-
-    // อัปเดตสถานะ
-    window.updateStatus = async (docId, newStatus, createdAt) => {
-      const queueRef = doc(db, "queues", docId);
-      if (newStatus === "เสร็จสิ้น") {
-        const completedAt = new Date().toISOString();
-        const durationStr = formatDuration(createdAt, completedAt);
-        await updateDoc(queueRef, {
-          status: newStatus,
-          completed_at: completedAt,
-          total_duration: durationStr
-        });
+    function checkAuth() {
+      if (sessionStorage.getItem('isAdminLoggedIn') === 'true') {
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('adminMainContent').style.display = 'block';
+        initAdminApp(); // เริ่มดึงข้อมูลคิวเมื่อล็อกอินผ่าน
       } else {
-        await updateDoc(queueRef, { 
-          status: newStatus,
-          completed_at: null,
-          total_duration: null
-        });
+        document.getElementById('loginSection').style.display = 'block';
+        document.getElementById('adminMainContent').style.display = 'none';
+      }
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const inputPass = document.getElementById('passInput').value;
+      if (inputPass === ADMIN_PASSWORD) {
+        sessionStorage.setItem('isAdminLoggedIn', 'true');
+        checkAuth();
+      } else {
+        alert('รหัสผ่านไม่ถูกต้อง! โปรดลองใหม่อีกครั้ง');
+        document.getElementById('passInput').value = '';
+      }
+    });
+
+    window.logoutAdmin = () => {
+      if (confirm('คุณต้องการออกจากระบบหรือไม่?')) {
+        sessionStorage.removeItem('isAdminLoggedIn');
+        checkAuth();
       }
     };
 
-    // กดปุ่ม "เสร็จสิ้น"
-    window.finishQueue = async (docId, createdAt) => {
-      if (confirm('คุณต้องการจบการทำงานคิวนี้และบันทึกเวลาใช่หรือไม่?')) {
+    // ตรวจสอบสถานะล็อกอินทันทีที่เปิดหน้าเว็บ
+    checkAuth();
+
+    // --- ส่วนการทำงานหลักของระบบแอดมิน ---
+    function initAdminApp() {
+      const d = new Date();
+      const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      let rawAdminData = [];
+
+      function formatDuration(createdAt, completedAt) {
+        if (!createdAt) return '-';
+        const start = new Date(createdAt);
+        const end = completedAt ? new Date(completedAt) : new Date();
+        const diffSec = Math.max(0, Math.floor((end - start) / 1000));
+        
+        const hours = Math.floor(diffSec / 3600);
+        const minutes = Math.floor((diffSec % 3600) / 60);
+        const seconds = diffSec % 60;
+        
+        return `${hours > 0 ? hours + ' ชม. ' : ''}${minutes} นาที ${seconds} วิ`;
+      }
+
+      // เพิ่มคิวใหม่
+      const addForm = document.getElementById('addQueueForm');
+      addForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+
+        try {
+          const createdAt = new Date().toISOString();
+          const initialStatus = document.getElementById('status').value;
+          const isCompleted = initialStatus === "เสร็จสิ้น";
+
+          const todayQuery = query(collection(db, "queues"), where("date_string", "==", todayStr));
+          const snapshotToday = await getDocs(todayQuery);
+          const nextQueueSeq = snapshotToday.size + 1;
+          const queueNumber = `Q-${String(nextQueueSeq).padStart(3, '0')}`;
+
+          const newQueue = {
+            queue_number: queueNumber,
+            queue_seq: nextQueueSeq,
+            customer_name: document.getElementById('customer_name').value,
+            subject: document.getElementById('subject').value,
+            department: document.getElementById('department').value,
+            status: initialStatus,
+            memo: document.getElementById('memo').value,
+            created_at: createdAt,
+            completed_at: isCompleted ? createdAt : null,
+            total_duration: isCompleted ? formatDuration(createdAt, createdAt) : null,
+            date_string: todayStr
+          };
+
+          await addDoc(collection(db, "queues"), newQueue);
+          addForm.reset();
+          alert(`สร้างคิวเรียบร้อย! หมายเลขคิวของคุณคือ: ${queueNumber}`);
+        } catch (err) {
+          console.error("เกิดข้อผิดพลาดในการบันทึก:", err);
+          alert('ไม่สามารถบันทึกข้อมูลได้: ' + err.message);
+        } finally {
+          submitBtn.disabled = false;
+        }
+      };
+
+      // ดึงข้อมูลคิว Realtime
+      const q = query(
+        collection(db, "queues"), 
+        where("date_string", "==", todayStr), 
+        orderBy("created_at", "desc")
+      );
+      
+      onSnapshot(q, (snapshot) => {
+        rawAdminData = [];
+        snapshot.forEach((doc) => {
+          rawAdminData.push({ id: doc.id, ...doc.data() });
+        });
+        renderAdminCards();
+      });
+
+      function renderAdminCards() {
+        const cardContainer = document.getElementById('adminCardList');
+        cardContainer.innerHTML = '';
+        
+        if (rawAdminData.length === 0) {
+          cardContainer.innerHTML = '<div class="col-12 text-center py-5 text-muted">ยังไม่มีรายการคำร้องในวันนี้</div>';
+          return;
+        }
+
+        rawAdminData.forEach((item) => {
+          const docId = item.id;
+          const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+          const isCompleted = item.completed_at !== null && item.completed_at !== undefined;
+          const displayDuration = item.total_duration || formatDuration(item.created_at, item.completed_at);
+          const qNum = item.queue_number || '-';
+
+          const cardDiv = document.createElement('div');
+          cardDiv.className = 'col-12 col-md-6 col-lg-4';
+          cardDiv.innerHTML = `
+            <div class="admin-card p-3 h-100 d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="queue-num-badge">🏷️ ${qNum}</span>
+                  <span class="badge bg-secondary">${item.department}</span>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h5 class="fw-bold text-dark mb-0">${item.customer_name}</h5>
+                  <span class="time-badge">🕒 ${timeStr} น.</span>
+                </div>
+                <p class="text-primary small mb-3 fw-semibold">📄 ${item.subject}</p>
+
+                <div class="mb-2">
+                  <label class="form-label small text-muted mb-1 fw-bold">อัปเดตสถานะ:</label>
+                  <select class="form-select form-select-sm mb-2" onchange="updateStatus('${docId}', this.value, '${item.created_at}')">
+                    <option value="เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ" ${item.status === 'เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ' ? 'selected' : ''}>เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ</option>
+                    <option value="ผู้พิพากษาพิจารณาคำร้อง" ${item.status === 'ผู้พิพากษาพิจารณาคำร้อง' ? 'selected' : ''}>ผู้พิพากษาพิจารณาคำร้อง</option>
+                    <option value="ผู้พิพากษามีคำสั่งแล้ว" ${item.status === 'ผู้พิพากษามีคำสั่งแล้ว' ? 'selected' : ''}>ผู้พิพากษามีคำสั่งแล้ว</option>
+                    <option value="เสร็จสิ้น" ${item.status === 'เสร็จสิ้น' ? 'selected' : ''}>เสร็จสิ้น</option>
+                  </select>
+                  <input type="text" class="form-control form-control-sm" value="${item.memo || ''}" placeholder="ระบุ Memo หรือข้อความแจ้งเตือน" onblur="updateMemo('${docId}', this.value)">
+                </div>
+              </div>
+
+              <div class="pt-2 border-top mt-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <small class="text-muted fw-bold">ระยะเวลาที่ใช้ไป:</small>
+                  <span class="badge ${isCompleted ? 'bg-success' : 'bg-warning text-dark'} duration-badge" id="admin-timer-${docId}">
+                    ${displayDuration}
+                  </span>
+                </div>
+                
+                <div class="d-flex gap-2">
+                  ${!isCompleted ? `
+                    <button class="btn btn-success btn-sm flex-fill fw-bold" onclick="finishQueue('${docId}', '${item.created_at}')">
+                      ✅ เสร็จสิ้น
+                    </button>
+                  ` : `
+                    <span class="badge bg-secondary flex-fill d-flex align-items-center justify-content-center">ปิดงานแล้ว</span>
+                  `}
+                  <button class="btn btn-outline-danger btn-sm" onclick="deleteQueue('${docId}', '${item.customer_name}')">
+                    🗑️ ลบ
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+          cardContainer.appendChild(cardDiv);
+        });
+      }
+
+      // อัปเดตเวลาเดิน Realtime บน admin
+      setInterval(() => {
+        rawAdminData.forEach(item => {
+          const isCompleted = item.completed_at !== null && item.completed_at !== undefined;
+          if (!isCompleted) {
+            const timerEl = document.getElementById(`admin-timer-${item.id}`);
+            if (timerEl) {
+              timerEl.innerText = formatDuration(item.created_at, null);
+            }
+          }
+        });
+      }, 1000);
+
+      // อัปเดตสถานะ
+      window.updateStatus = async (docId, newStatus, createdAt) => {
         const queueRef = doc(db, "queues", docId);
-        const completedAt = new Date().toISOString();
-        const durationStr = formatDuration(createdAt, completedAt);
+        if (newStatus === "เสร็จสิ้น") {
+          const completedAt = new Date().toISOString();
+          const durationStr = formatDuration(createdAt, completedAt);
+          await updateDoc(queueRef, {
+            status: newStatus,
+            completed_at: completedAt,
+            total_duration: durationStr
+          });
+        } else {
+          await updateDoc(queueRef, { 
+            status: newStatus,
+            completed_at: null,
+            total_duration: null
+          });
+        }
+      };
 
-        await updateDoc(queueRef, {
-          status: "เสร็จสิ้น",
-          completed_at: completedAt,
-          total_duration: durationStr
-        });
-        alert('บันทึกการจบงานเรียบร้อยแล้ว');
-      }
-    };
+      // กดปุ่ม "เสร็จสิ้น"
+      window.finishQueue = async (docId, createdAt) => {
+        if (confirm('คุณต้องการจบการทำงานคิวนี้และบันทึกเวลาใช่หรือไม่?')) {
+          const queueRef = doc(db, "queues", docId);
+          const completedAt = new Date().toISOString();
+          const durationStr = formatDuration(createdAt, completedAt);
 
-    window.updateMemo = async (docId, newMemo) => {
-      const queueRef = doc(db, "queues", docId);
-      await updateDoc(queueRef, { memo: newMemo });
-    };
+          await updateDoc(queueRef, {
+            status: "เสร็จสิ้น",
+            completed_at: completedAt,
+            total_duration: durationStr
+          });
+          alert('บันทึกการจบงานเรียบร้อยแล้ว');
+        }
+      };
 
-    window.deleteQueue = async (docId, name) => {
-      if (confirm(`คุณต้องการลบรายการคิวของ "${name}" ใช่หรือไม่?`)) {
-        await deleteDoc(doc(db, "queues", docId));
-        alert('ลบรายการคิวเรียบร้อยแล้ว');
-      }
-    };
+      window.updateMemo = async (docId, newMemo) => {
+        const queueRef = doc(db, "queues", docId);
+        await updateDoc(queueRef, { memo: newMemo });
+      };
+
+      window.deleteQueue = async (docId, name) => {
+        if (confirm(`คุณต้องการลบรายการคิวของ "${name}" ใช่หรือไม่?`)) {
+          await deleteDoc(doc(db, "queues", docId));
+          alert('ลบรายการคิวเรียบร้อยแล้ว');
+        }
+      };
+    }
   </script>
 </body>
 </html>
