@@ -51,6 +51,16 @@
       transform: translateY(-2px);
       box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.5);
     }
+    .queue-number-badge {
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: #ffffff;
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 8px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    }
     .time-badge {
       background-color: rgba(59, 130, 246, 0.15);
       color: #60a5fa;
@@ -166,8 +176,9 @@
       ศาลเยาวชนและครอบครัวกลาง (ประจำวันที่: <span id="currentDate">-</span>)
     </p>
 
+    <!-- ช่องค้นหาได้ทั้ง ชื่อ หรือ เลขคิว -->
     <div class="search-box px-2">
-      <input type="text" id="searchInput" class="form-control search-input text-center" placeholder="🔍 พิมพ์ชื่อของคุณเพื่อค้นหาคิว...">
+      <input type="text" id="searchInput" class="form-control search-input text-center" placeholder="🔍 พิมพ์ชื่อ หรือ เลขคิว (เช่น Q-001) เพื่อค้นหา...">
     </div>
   </div>
 
@@ -203,7 +214,6 @@
     let rawQueueData = [];
     let filterKeyword = "";
 
-    // แมปขั้นตอนสถานะกับเปอร์เซ็นต์และลำดับ index
     const statusMap = {
       "เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ": { step: 1, percent: 25 },
       "ผู้พิพากษาพิจารณาคำร้อง": { step: 2, percent: 50 },
@@ -233,9 +243,12 @@
     function renderQueueCards() {
       const container = document.getElementById('queueList');
 
-      const filteredData = rawQueueData.filter(item => 
-        (item.customer_name || '').toLowerCase().includes(filterKeyword)
-      );
+      // รองรับการค้นหาจาก ชื่อ หรือ เลขคิว (คิว Q-001 หรือแค่พิมพ์ 1)
+      const filteredData = rawQueueData.filter(item => {
+        const nameMatch = (item.customer_name || '').toLowerCase().includes(filterKeyword);
+        const qNumMatch = (item.queue_number || '').toLowerCase().includes(filterKeyword);
+        return nameMatch || qNumMatch;
+      });
 
       if (filteredData.length === 0) {
         container.innerHTML = `
@@ -249,29 +262,29 @@
 
       container.innerHTML = filteredData.map(item => {
         const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        const qNum = item.queue_number || '-';
         
-        // หา Progress step
         const currentStatusInfo = statusMap[item.status] || { step: 1, percent: 25 };
         const currentStep = currentStatusInfo.step;
         const progressPercent = currentStatusInfo.percent;
-        
-        // คำนวณความยาวเส้นหลอด Progress (ช่วงจาก 0% ถึง 80% สำหรับ 4 ขั้น)
         const fillWidthPercent = (currentStep - 1) * 26.66;
 
         return `
           <div class="col-12 col-md-6 col-lg-6 col-xl-4">
             <div class="queue-card p-3 h-100 d-flex flex-column justify-content-between">
               <div>
-                <!-- ส่วนแถบบน: เวลา และ ส่วนงาน -->
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                  <span class="time-badge">🕒 ยื่นเมื่อ ${timeStr} น.</span>
+                  <span class="queue-number-badge">🏷️ ${qNum}</span>
                   <div class="d-flex align-items-center gap-1">
                     <span class="badge bg-secondary opacity-75">${item.department}</span>
                     <span class="badge ${currentStep === 4 ? 'bg-success' : 'bg-primary'}">${progressPercent}%</span>
                   </div>
                 </div>
 
-                <h5 class="fw-bold text-white mb-1">${item.customer_name}</h5>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <h5 class="fw-bold text-white mb-0">${item.customer_name}</h5>
+                  <span class="time-badge">🕒 ${timeStr} น.</span>
+                </div>
                 <p class="text-info small mb-2">📄 ${item.subject}</p>
 
                 ${item.memo ? `<div class="memo-box text-warning mb-2">📌 ${item.memo}</div>` : ''}
@@ -283,25 +296,21 @@
                 <div class="tracker-fill" style="width: ${fillWidthPercent}%;"></div>
                 
                 <div class="tracker-steps">
-                  <!-- สถานีที่ 1 -->
                   <div class="step-item ${currentStep > 1 ? 'completed' : (currentStep === 1 ? 'current' : '')}">
                     <div class="step-node">${currentStep > 1 ? '✓' : '1'}</div>
                     <div class="step-label">เจ้าหน้าที่รับเอกสาร</div>
                   </div>
                   
-                  <!-- สถานีที่ 2 -->
                   <div class="step-item ${currentStep > 2 ? 'completed' : (currentStep === 2 ? 'current' : (currentStep > 1 ? 'active' : ''))}">
                     <div class="step-node">${currentStep > 2 ? '✓' : '2'}</div>
                     <div class="step-label">ผู้พิพากษาพิจารณา</div>
                   </div>
                   
-                  <!-- สถานีที่ 3 -->
                   <div class="step-item ${currentStep > 3 ? 'completed' : (currentStep === 3 ? 'current' : (currentStep > 2 ? 'active' : ''))}">
                     <div class="step-node">${currentStep > 3 ? '✓' : '3'}</div>
                     <div class="step-label">มีคำสั่งแล้ว</div>
                   </div>
                   
-                  <!-- สถานีที่ 4 -->
                   <div class="step-item ${currentStep === 4 ? 'completed current' : ''}">
                     <div class="step-node">${currentStep === 4 ? '✓' : '4'}</div>
                     <div class="step-label">เสร็จสิ้น</div>
