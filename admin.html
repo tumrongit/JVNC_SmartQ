@@ -19,12 +19,31 @@
       background-color: #ffffff;
       border: 1px solid #e2e8f0;
       border-radius: 12px;
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: all 0.3s ease;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
     .admin-card:hover {
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
+
+    /* Style เตือนเมื่อเกิน 3 ชั่วโมง (ขอบสีเหลือง) */
+    .admin-card.sla-warning-yellow {
+      border: 2px solid #eab308 !important;
+      background-color: #fefce8 !important;
+    }
+
+    /* Style เตือนเมื่อเกิน 5 ชั่วโมง (ขอบสีแดง + กระพริบ) */
+    .admin-card.sla-warning-red {
+      border: 2px solid #ef4444 !important;
+      background-color: #fef2f2 !important;
+      animation: pulse-red-border 2s infinite;
+    }
+    @keyframes pulse-red-border {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
     .queue-num-badge {
       background-color: #0284c7;
       color: #ffffff;
@@ -49,7 +68,7 @@
 </head>
 <body>
 
-  <!-- 1. ส่วนหน้าต่างยืนยันรหัสผ่าน (แสดงเมื่อยังไม่ได้เข้าสู่ระบบ) -->
+  <!-- 1. ส่วนหน้าต่างยืนยันรหัสผ่าน -->
   <div id="loginSection" class="container login-container">
     <div class="card shadow-sm border-0">
       <div class="card-header bg-primary text-white text-center py-3 fw-bold fs-5">
@@ -67,10 +86,13 @@
     </div>
   </div>
 
-  <!-- 2. ส่วนแผงควบคุมหลัก (จะซ่อนไว้ก่อน ปลดล็อกเมื่อใส่รหัสผ่านถูกต้อง) -->
+  <!-- 2. ส่วนแผงควบคุมหลัก -->
   <div id="adminMainContent" class="container py-4" style="display: none;">
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h3 class="text-primary fw-bold mb-0">🛠️ บันทึกและจัดการสถานะคำร้อง (เจ้าหน้าที่)</h3>
+      <div>
+        <h3 class="text-primary fw-bold mb-0">🛠️ บันทึกและจัดการสถานะคำร้อง (เจ้าหน้าที่)</h3>
+        <small class="text-muted">⏱️ SLA Alert: <b class="text-warning">เกิน 3 ชม. (ขอบเหลือง)</b> | <b class="text-danger">เกิน 5 ชม. (ขอบแดง)</b></small>
+      </div>
       <button class="btn btn-outline-danger btn-sm fw-bold" onclick="logoutAdmin()">🔒 ออกจากระบบ</button>
     </div>
 
@@ -155,14 +177,17 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // --- ส่วนการตรวจสอบรหัสผ่าน (Authentication System) ---
+    // กำหนดเวลา SLA (3 ชั่วโมง = 10,800 วินาที / 5 ชั่วโมง = 18,000 วินาที)
+    const SLA_YELLOW_SECONDS = 3 * 3600; 
+    const SLA_RED_SECONDS = 5 * 3600;
+
     const ADMIN_PASSWORD = "jvncq";
 
     function checkAuth() {
       if (sessionStorage.getItem('isAdminLoggedIn') === 'true') {
         document.getElementById('loginSection').style.display = 'none';
         document.getElementById('adminMainContent').style.display = 'block';
-        initAdminApp(); // เริ่มดึงข้อมูลคิวเมื่อล็อกอินผ่าน
+        initAdminApp();
       } else {
         document.getElementById('loginSection').style.display = 'block';
         document.getElementById('adminMainContent').style.display = 'none';
@@ -188,22 +213,23 @@
       }
     };
 
-    // ตรวจสอบสถานะล็อกอินทันทีที่เปิดหน้าเว็บ
     checkAuth();
 
-    // --- ส่วนการทำงานหลักของระบบแอดมิน ---
     function initAdminApp() {
       const d = new Date();
       const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
       let rawAdminData = [];
 
-      function formatDuration(createdAt, completedAt) {
-        if (!createdAt) return '-';
+      function getDiffSeconds(createdAt, completedAt) {
+        if (!createdAt) return 0;
         const start = new Date(createdAt);
         const end = completedAt ? new Date(completedAt) : new Date();
-        const diffSec = Math.max(0, Math.floor((end - start) / 1000));
-        
+        return Math.max(0, Math.floor((end - start) / 1000));
+      }
+
+      function formatDuration(createdAt, completedAt) {
+        const diffSec = getDiffSeconds(createdAt, completedAt);
         const hours = Math.floor(diffSec / 3600);
         const minutes = Math.floor((diffSec % 3600) / 60);
         const seconds = diffSec % 60;
@@ -284,15 +310,32 @@
           const displayDuration = item.total_duration || formatDuration(item.created_at, item.completed_at);
           const qNum = item.queue_number || '-';
 
+          // ตรวจสอบระดับการเตือนเวลา (SLA)
+          const diffSeconds = getDiffSeconds(item.created_at, item.completed_at);
+          let slaClass = '';
+          let slaBadge = '';
+
+          if (!isCompleted) {
+            if (diffSeconds >= SLA_RED_SECONDS) {
+              slaClass = 'sla-warning-red';
+              slaBadge = '<div class="badge bg-danger w-100 mb-2 py-1 fs-6">🚨 (รอเกิน 5 ชั่วโมง)</div>';
+            } else if (diffSeconds >= SLA_YELLOW_SECONDS) {
+              slaClass = 'sla-warning-yellow';
+              slaBadge = '<div class="badge bg-warning text-dark w-100 mb-2 py-1 fs-6">⚠️ (รอเกิน 3 ชั่วโมง)</div>';
+            }
+          }
+
           const cardDiv = document.createElement('div');
           cardDiv.className = 'col-12 col-md-6 col-lg-4';
           cardDiv.innerHTML = `
-            <div class="admin-card p-3 h-100 d-flex flex-column justify-content-between">
+            <div class="admin-card p-3 h-100 d-flex flex-column justify-content-between ${slaClass}" id="card-${docId}">
               <div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <span class="queue-num-badge">🏷️ ${qNum}</span>
                   <span class="badge bg-secondary">${item.department}</span>
                 </div>
+
+                ${slaBadge}
 
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <h5 class="fw-bold text-dark mb-0">${item.customer_name}</h5>
@@ -315,7 +358,7 @@
               <div class="pt-2 border-top mt-3">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <small class="text-muted fw-bold">ระยะเวลาที่ใช้ไป:</small>
-                  <span class="badge ${isCompleted ? 'bg-success' : 'bg-warning text-dark'} duration-badge" id="admin-timer-${docId}">
+                  <span class="badge ${isCompleted ? 'bg-success' : (diffSeconds >= SLA_RED_SECONDS ? 'bg-danger' : (diffSeconds >= SLA_YELLOW_SECONDS ? 'bg-warning text-dark' : 'bg-warning text-dark'))} duration-badge" id="admin-timer-${docId}">
                     ${displayDuration}
                   </span>
                 </div>
@@ -339,20 +382,31 @@
         });
       }
 
-      // อัปเดตเวลาเดิน Realtime บน admin
+      // อัปเดตเวลาเดิน Realtime + เช็กเปลี่ยนสีขอบตาม SLA
       setInterval(() => {
         rawAdminData.forEach(item => {
           const isCompleted = item.completed_at !== null && item.completed_at !== undefined;
           if (!isCompleted) {
+            const diffSec = getDiffSeconds(item.created_at, null);
+            
             const timerEl = document.getElementById(`admin-timer-${item.id}`);
             if (timerEl) {
               timerEl.innerText = formatDuration(item.created_at, null);
+            }
+
+            // ถ้าแตะระดับ 3 ชม. หรือ 5 ชม. ให้รีเรนเดอร์เพื่ออัปเดตสีขอบและป้ายเตือน
+            const cardEl = document.getElementById(`card-${item.id}`);
+            if (cardEl) {
+              if (diffSec >= SLA_RED_SECONDS && !cardEl.classList.contains('sla-warning-red')) {
+                renderAdminCards();
+              } else if (diffSec >= SLA_YELLOW_SECONDS && diffSec < SLA_RED_SECONDS && !cardEl.classList.contains('sla-warning-yellow')) {
+                renderAdminCards();
+              }
             }
           }
         });
       }, 1000);
 
-      // อัปเดตสถานะ
       window.updateStatus = async (docId, newStatus, createdAt) => {
         const queueRef = doc(db, "queues", docId);
         if (newStatus === "เสร็จสิ้น") {
@@ -372,7 +426,6 @@
         }
       };
 
-      // กดปุ่ม "เสร็จสิ้น"
       window.finishQueue = async (docId, createdAt) => {
         if (confirm('คุณต้องการจบการทำงานคิวนี้และบันทึกเวลาใช่หรือไม่?')) {
           const queueRef = doc(db, "queues", docId);
