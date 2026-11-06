@@ -77,7 +77,7 @@
       font-size: 0.88rem;
     }
 
-    /* Progress Tracker Stepper */
+    /* Progress Tracker Stepper (สถานีรถไฟ) */
     .progress-tracker {
       position: relative;
       margin: 25px 0 10px 0;
@@ -167,7 +167,7 @@
       100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 
-    /* สไตล์ปุ่มควบคุม Pagination & Auto-Slide */
+    /* Controls Bar: Auto-Slide & Pagination */
     .controls-bar {
       display: flex;
       justify-content: space-between;
@@ -210,14 +210,14 @@
       ศาลเยาวชนและครอบครัวกลาง (ประจำวันที่: <span id="currentDate">-</span>)
     </p>
 
-    <!-- ช่องค้นหา -->
+    <!-- ช่องค้นหา (รองรับทั้งชื่อ และ เลขคิว เช่น Q-001) -->
     <div class="search-box px-2">
       <input type="text" id="searchInput" class="form-control search-input text-center" placeholder="🔍 พิมพ์ชื่อ หรือ เลขคิว (เช่น Q-001) เพื่อค้นหา...">
     </div>
   </div>
 
   <div class="container px-3 pb-5">
-    <!-- แถบเครื่องมือควบคุม: สลับ Auto Slide & ตัวแบ่งหน้า -->
+    <!-- แถบเครื่องมือควบคุม: ปุ่มสลับ Auto Slide & ตัวแบ่งหน้า -->
     <div class="controls-bar">
       <div class="d-flex align-items-center gap-2">
         <span class="badge bg-dark border border-secondary text-light px-3 py-2" id="queueTotalBadge">
@@ -236,7 +236,7 @@
       </div>
     </div>
 
-    <!-- ส่วนแสดงรายการการ์ด -->
+    <!-- ส่วนแสดงการ์ดรายการคำร้อง -->
     <div id="queueList" class="row g-3">
       <div class="col-12 text-center py-5 text-muted">
         <div class="spinner-border text-primary mb-2" role="status"></div>
@@ -261,6 +261,17 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    // ฟังก์ชัน Sanitizer ป้องกันช่องโหว่ XSS Injection 100%
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     const d = new Date();
     const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     document.getElementById('currentDate').innerText = d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -268,13 +279,29 @@
     let rawQueueData = [];
     let filterKeyword = "";
 
-    // ตัวแปร Pagination & Auto-Scroll
-    const ITEMS_PER_PAGE = 6;       // จำนวนคิวต่อ 1 หน้า
-    const AUTO_SLIDE_INTERVAL = 8000; // ความเร็วในการเปลี่ยนหน้า (8 วินาที)
+    // ตั้งค่าตัวแปร Pagination & Auto-Slide
+    const ITEMS_PER_PAGE = 6;         // แสดงหน้าละ 6 รายการ
+    const AUTO_SLIDE_INTERVAL = 8000;   // สลับหน้าอัตโนมัติทุกๆ 8 วินาที
     let currentPage = 1;
-    let isAutoSlideActive = false;
+
+    // ตรวจสอบ URL Parameter ว่าเปิดในโหมด TV หรือไม่ (?tv=true หรือ ?auto=true)
+    const urlParams = new URLSearchParams(window.location.search);
+    const isTVMode = urlParams.get('tv') === 'true' || urlParams.get('auto') === 'true';
+
+    let isAutoSlideActive = isTVMode;
     let autoSlideTimer = null;
 
+    const toggleBtn = document.getElementById('toggleAutoSlideBtn');
+
+    // ถ้าเข้าด้วยโหมด TV ให้ปรับปุ่มเป็นสีเขียวและเริ่ม Auto-Slide ทันที
+    if (isTVMode) {
+      toggleBtn.classList.remove('btn-outline-info');
+      toggleBtn.classList.add('btn-success');
+      toggleBtn.innerHTML = '⏸️ ปิดโหมดเลื่อนวนอัตโนมัติ';
+      startAutoSlide();
+    }
+
+    // แผนผังลำดับขั้นตอน 4 ระดับ (25%, 50%, 75%, 100%)
     const statusMap = {
       "เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ": { step: 1, percent: 25 },
       "ผู้พิพากษาพิจารณาคำร้อง": { step: 2, percent: 50 },
@@ -282,14 +309,14 @@
       "เสร็จสิ้น": { step: 4, percent: 100 }
     };
 
-    // ค้นหา
+    // ค้นหาแบบ Realtime (รองรับทั้งชื่อและเลขคิว)
     document.getElementById('searchInput').addEventListener('input', (e) => {
       filterKeyword = e.target.value.trim().toLowerCase();
-      currentPage = 1; // รีเซ็ตกลับไปหน้า 1 เสมอเมื่อค้นหา
+      currentPage = 1;
       renderQueueCards();
     });
 
-    // ปุ่มเปลี่ยนหน้า
+    // ควบคุมการเปลี่ยนหน้า Pagination
     document.getElementById('prevPageBtn').addEventListener('click', () => {
       if (currentPage > 1) {
         currentPage--;
@@ -306,8 +333,7 @@
       }
     });
 
-    // ปุ่มสลับ Auto-Slide
-    const toggleBtn = document.getElementById('toggleAutoSlideBtn');
+    // ปุ่มสลับ Auto-Slide ด้วยมือ
     toggleBtn.addEventListener('click', () => {
       isAutoSlideActive = !isAutoSlideActive;
       if (isAutoSlideActive) {
@@ -331,7 +357,7 @@
         if (totalPages <= 1) return;
 
         if (currentPage >= totalPages) {
-          currentPage = 1; // วนกลับไปหน้าแรก
+          currentPage = 1; // วนกลับไปหน้าแรกเมื่อถึงหน้าสุดท้าย
         } else {
           currentPage++;
         }
@@ -346,7 +372,7 @@
       }
     }
 
-    // ดึงข้อมูล Realtime
+    // ดึงข้อมูลคิวของวันนี้แบบ Realtime
     const q = query(
       collection(db, "queues"),
       where("date_string", "==", todayStr),
@@ -355,10 +381,12 @@
 
     onSnapshot(q, (snapshot) => {
       rawQueueData = [];
-      snapshot.forEach((doc) => {
-        rawQueueData.push({ id: doc.id, ...doc.data() });
+      snapshot.forEach((docSnap) => {
+        rawQueueData.push({ id: docSnap.id, ...docSnap.data() });
       });
       renderQueueCards();
+    }, (error) => {
+      console.error("Firestore Listen Error:", error);
     });
 
     function getFilteredData() {
@@ -375,7 +403,6 @@
       const totalItems = filteredData.length;
       const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
 
-      // ตรวจสอบขอบเขตหน้าปัจจุบัน
       if (currentPage > totalPages) currentPage = totalPages;
       if (currentPage < 1) currentPage = 1;
 
@@ -395,13 +422,19 @@
         return;
       }
 
-      // ตัดแบ่งข้อมูลแสดงเฉพาะหน้าที่เลือก (Pagination Slice)
+      // ตัดแบ่งข้อมูลแสดงตามหน้า
       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
       const pagedData = filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
       container.innerHTML = pagedData.map(item => {
         const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-        const qNum = item.queue_number || '-';
+        
+        // กรองข้อมูลตัวแปรทั้งหมดเพื่อความปลอดภัยสูงสุด
+        const cleanQNum = escapeHTML(item.queue_number || '-');
+        const cleanDept = escapeHTML(item.department);
+        const cleanName = escapeHTML(item.customer_name);
+        const cleanSubject = escapeHTML(item.subject);
+        const cleanMemo = escapeHTML(item.memo || '');
         
         const currentStatusInfo = statusMap[item.status] || { step: 1, percent: 25 };
         const currentStep = currentStatusInfo.step;
@@ -413,23 +446,23 @@
             <div class="queue-card p-3 h-100 d-flex flex-column justify-content-between">
               <div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                  <span class="queue-number-badge">🏷️ ${qNum}</span>
+                  <span class="queue-number-badge">🏷️ ${cleanQNum}</span>
                   <div class="d-flex align-items-center gap-1">
-                    <span class="badge bg-secondary opacity-75">${item.department}</span>
+                    <span class="badge bg-secondary opacity-75">${cleanDept}</span>
                     <span class="badge ${currentStep === 4 ? 'bg-success' : 'bg-primary'}">${progressPercent}%</span>
                   </div>
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                  <h5 class="fw-bold text-white mb-0">${item.customer_name}</h5>
+                  <h5 class="fw-bold text-white mb-0">${cleanName}</h5>
                   <span class="time-badge">🕒 ${timeStr} น.</span>
                 </div>
-                <p class="text-info small mb-2">📄 ${item.subject}</p>
+                <p class="text-info small mb-2">📄 ${cleanSubject}</p>
 
-                ${item.memo ? `<div class="memo-box text-warning mb-2">📌 ${item.memo}</div>` : ''}
+                ${cleanMemo ? `<div class="memo-box text-warning mb-2">📌 ${cleanMemo}</div>` : ''}
               </div>
 
-              <!-- Progress Tracker Stepper -->
+              <!-- Progress Tracker Stepper (สถานีรถไฟ) -->
               <div class="progress-tracker">
                 <div class="tracker-track"></div>
                 <div class="tracker-fill" style="width: ${fillWidthPercent}%;"></div>
