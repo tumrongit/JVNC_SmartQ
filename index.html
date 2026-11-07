@@ -15,7 +15,6 @@
       overflow-x: hidden;
     }
 
-    /* สไตล์ปกติ */
     .header-board {
       background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
       border-bottom: 2px solid #3b82f6;
@@ -68,7 +67,7 @@
     /* Stepper Tracker */
     .progress-tracker {
       position: relative;
-      margin: 20px 0 5px 0;
+      margin: 18px 0 5px 0;
       padding: 0 5px;
     }
     .tracker-track {
@@ -134,7 +133,7 @@
       color: #ffffff;
     }
     .step-label {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: #64748b;
       line-height: 1.2;
       font-weight: 500;
@@ -169,31 +168,33 @@
       font-size: 0.85rem;
     }
 
-    /* 📺 สไตล์พิเศษเฉพาะโหมด TV (?tv=true) 📺 */
+    /* 📺 สไตล์โหมด TV: แสดง 4 คอลัมน์แถวเดียว พอดีจอ 100% 📺 */
     body.is-tv-mode {
       height: 100vh;
-      overflow: hidden; /* ห้ามเลื่อน Scrollbar */
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
     body.is-tv-mode .header-board {
-      padding: 10px 20px;
-      margin-bottom: 10px;
+      padding: 10px 25px;
+      margin-bottom: 8px;
     }
     body.is-tv-mode .search-box {
-      display: none !important; /* ซ่อนกล่องค้นหาบนจอทีวี */
+      display: none !important;
     }
     body.is-tv-mode .header-board h3 {
-      font-size: 1.6rem;
+      font-size: 1.7rem;
       margin-bottom: 2px;
     }
-    body.is-tv-mode .header-board p {
-      margin-bottom: 0;
-      font-size: 0.9rem;
+    body.is-tv-mode .controls-bar {
+      margin-bottom: 10px;
     }
     body.is-tv-mode .queue-card {
-      padding: 12px 16px !important;
+      padding: 14px 14px !important;
+      min-height: calc(100vh - 195px); /* ขยายการ์ดให้สูงเต็มช่วงจอพอดี */
     }
     body.is-tv-mode .step-label {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
     }
   </style>
 </head>
@@ -205,13 +206,13 @@
       ศาลเยาวชนและครอบครัวกลาง (ประจำวันที่: <span id="currentDate">-</span>)
     </p>
 
-    <!-- ช่องค้นหา (จะถูกซ่อนอัตโนมัติเมื่อเปิดด้วย ?tv=true) -->
+    <!-- ช่องค้นหา (จะถูกซ่อนอัตโนมัติบนจอทีวี) -->
     <div class="search-box px-2 mt-2" id="searchBoxContainer">
       <input type="text" id="searchInput" class="form-control search-input text-center" placeholder="🔍 พิมพ์ชื่อ หรือ เลขคิว (เช่น Q-001) เพื่อค้นหา...">
     </div>
   </div>
 
-  <div class="container-fluid px-4 pb-3">
+  <div class="container-fluid px-4 pb-2 flex-grow-1 d-flex flex-column justify-content-between">
     <!-- แถบควบคุม -->
     <div class="controls-bar">
       <div class="d-flex align-items-center gap-2">
@@ -231,7 +232,7 @@
     </div>
 
     <!-- รายการการ์ด -->
-    <div id="queueList" class="row g-3">
+    <div id="queueList" class="row g-3 flex-grow-1 align-items-stretch">
       <div class="col-12 text-center py-5 text-muted">
         <div class="spinner-border text-primary mb-2" role="status"></div>
         <div>กำลังโหลดข้อมูลสถานะคิว...</div>
@@ -272,19 +273,16 @@
     let rawQueueData = [];
     let filterKeyword = "";
 
-    // ตรวจสอบ Parameter โหมดทีวี
     const urlParams = new URLSearchParams(window.location.search);
     const isTVMode = urlParams.get('tv') === 'true' || urlParams.get('auto') === 'true';
 
-    // ถ้าเป็นโหมด TV ให้ใส่ Class ปรับแต่งจอ และตั้งให้แสดงหน้าละ 2 รายการ (เพื่อไม่ให้ล้นจอ และเลื่อนสลับหน้าได้)
     if (isTVMode) {
       document.body.classList.add('is-tv-mode');
     }
 
-    // 💡 โหมด TV แสดงหน้าละ 2 รายการ (พอดีจอ 100% และถ้ามี 4 คิว จะกลายเป็น 2 หน้า และเลื่อนวนได้)
-    // 💡 ถ้าเป็นมือถือทั่วไป แสดงหน้าละ 6 รายการ
-    const ITEMS_PER_PAGE = isTVMode ? 2 : 6;
-    const AUTO_SLIDE_INTERVAL = 8000; // สลับหน้าทุกๆ 8 วินาที
+    // 💡 ตั้งค่า: บนทีวีให้แสดง 4 รายการ (เรียงแถวเดียวพอดีจอ) | บนมือถือแสดง 6 รายการ
+    const ITEMS_PER_PAGE = isTVMode ? 4 : 6;
+    const AUTO_SLIDE_INTERVAL = 8000;
     let currentPage = 1;
 
     let isAutoSlideActive = isTVMode;
@@ -417,8 +415,8 @@
       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
       const pagedData = filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-      // ในโหมด TV ถ้าแสดงหน้าละ 2 รายการ ให้แบ่งฝั่งซ้าย-ขวาอย่างละ 50% (col-6)
-      const columnClass = isTVMode ? 'col-6' : 'col-12 col-md-6 col-lg-6 col-xl-4';
+      // บน TV ใช้ col-3 (12 / 3 = 4 การ์ดเรียงแนวนอนพอดี) | บนมือถือ col-12 / col-md-6
+      const columnClass = isTVMode ? 'col-3' : 'col-12 col-md-6 col-lg-6 col-xl-4';
 
       container.innerHTML = pagedData.map(item => {
         const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
@@ -447,12 +445,12 @@
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                  <h4 class="fw-bold text-white mb-0" style="font-size: ${isTVMode ? '1.5rem' : '1.25rem'};">${cleanName}</h4>
+                  <h4 class="fw-bold text-white mb-0 text-truncate" title="${cleanName}" style="font-size: ${isTVMode ? '1.25rem' : '1.2rem'};">${cleanName}</h4>
                   <span class="time-badge">🕒 ${timeStr} น.</span>
                 </div>
-                <p class="text-info small mb-2" style="font-size: ${isTVMode ? '1rem' : '0.875rem'};">📄 ${cleanSubject}</p>
+                <p class="text-info small mb-2 text-truncate" title="${cleanSubject}" style="font-size: 0.88rem;">📄 ${cleanSubject}</p>
 
-                ${cleanMemo ? `<div class="memo-box text-warning mb-2">📌 ${cleanMemo}</div>` : ''}
+                ${cleanMemo ? `<div class="memo-box text-warning mb-2 text-truncate" title="${cleanMemo}">📌 ${cleanMemo}</div>` : ''}
               </div>
 
               <div class="progress-tracker">
