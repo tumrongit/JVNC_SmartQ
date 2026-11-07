@@ -12,12 +12,15 @@
       color: #f8fafc;
       font-family: 'Sarabun', sans-serif;
       min-height: 100vh;
+      overflow-x: hidden;
     }
+
+    /* สไตล์ปกติ */
     .header-board {
       background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
       border-bottom: 2px solid #3b82f6;
-      padding: 20px 15px;
-      margin-bottom: 20px;
+      padding: 15px 15px;
+      margin-bottom: 15px;
     }
     .search-box {
       max-width: 500px;
@@ -29,16 +32,7 @@
       color: #fff;
       font-size: 1rem;
       border-radius: 10px;
-      padding: 12px 16px;
-    }
-    .search-input:focus {
-      background-color: #1e293b;
-      color: #fff;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
-    }
-    .search-input::placeholder {
-      color: #94a3b8;
+      padding: 10px 16px;
     }
     .queue-card {
       background-color: #1e293b;
@@ -47,19 +41,13 @@
       transition: transform 0.2s, box-shadow 0.2s;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     }
-    .queue-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.5);
-    }
     .queue-number-badge {
       background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
       color: #ffffff;
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       font-weight: 700;
-      padding: 4px 14px;
+      padding: 4px 12px;
       border-radius: 8px;
-      letter-spacing: 0.5px;
-      box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
     }
     .time-badge {
       background-color: rgba(59, 130, 246, 0.15);
@@ -72,20 +60,20 @@
     .memo-box {
       background-color: rgba(51, 65, 85, 0.5);
       border-left: 3px solid #3b82f6;
-      padding: 8px 12px;
+      padding: 6px 10px;
       border-radius: 4px;
-      font-size: 0.88rem;
+      font-size: 0.85rem;
     }
 
-    /* Progress Tracker Stepper (สถานีรถไฟ) */
+    /* Stepper Tracker */
     .progress-tracker {
       position: relative;
-      margin: 25px 0 10px 0;
+      margin: 20px 0 5px 0;
       padding: 0 5px;
     }
     .tracker-track {
       position: absolute;
-      top: 14px;
+      top: 13px;
       left: 10%;
       right: 10%;
       height: 4px;
@@ -94,7 +82,7 @@
     }
     .tracker-fill {
       position: absolute;
-      top: 14px;
+      top: 13px;
       left: 10%;
       height: 4px;
       background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%);
@@ -115,8 +103,8 @@
       text-align: center;
     }
     .step-node {
-      width: 28px;
-      height: 28px;
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
       background-color: #1e293b;
       border: 3px solid #475569;
@@ -126,8 +114,7 @@
       font-size: 0.75rem;
       font-weight: 700;
       color: #94a3b8;
-      transition: all 0.3s;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .step-item.active .step-node {
       border-color: #3b82f6;
@@ -147,7 +134,7 @@
       color: #ffffff;
     }
     .step-label {
-      font-size: 0.72rem;
+      font-size: 0.75rem;
       color: #64748b;
       line-height: 1.2;
       font-weight: 500;
@@ -167,68 +154,75 @@
       100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 
-    /* Controls Bar: Auto-Slide & Pagination */
     .controls-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
       margin-bottom: 15px;
-    }
-    .btn-slide-toggle {
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      padding: 5px 14px;
     }
     .page-btn {
       background-color: #1e293b;
       border: 1px solid #334155;
       color: #94a3b8;
       border-radius: 8px;
-      padding: 6px 14px;
+      padding: 5px 12px;
+      font-size: 0.85rem;
+    }
+
+    /* 📺 สไตล์พิเศษเฉพาะโหมด TV (?tv=true) 📺 */
+    body.is-tv-mode {
+      height: 100vh;
+      overflow: hidden; /* ห้ามเลื่อน Scrollbar */
+    }
+    body.is-tv-mode .header-board {
+      padding: 10px 20px;
+      margin-bottom: 10px;
+    }
+    body.is-tv-mode .search-box {
+      display: none !important; /* ซ่อนกล่องค้นหาบนจอทีวี */
+    }
+    body.is-tv-mode .header-board h3 {
+      font-size: 1.6rem;
+      margin-bottom: 2px;
+    }
+    body.is-tv-mode .header-board p {
+      margin-bottom: 0;
       font-size: 0.9rem;
-      font-weight: 600;
     }
-    .page-btn:hover:not(:disabled) {
-      background-color: #3b82f6;
-      color: #ffffff;
-      border-color: #3b82f6;
+    body.is-tv-mode .queue-card {
+      padding: 12px 16px !important;
     }
-    .page-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
+    body.is-tv-mode .step-label {
+      font-size: 0.8rem;
     }
   </style>
 </head>
 <body>
 
   <div class="header-board text-center">
-    <h3 class="fw-bold text-warning mb-1">🏛️ สถานะคำร้องและการดำเนินงาน</h3>
-    <p class="text-light opacity-75 mb-3" style="font-size: 0.95rem;">
+    <h3 class="fw-bold text-warning">🏛️ สถานะคำร้องและการดำเนินงาน</h3>
+    <p class="text-light opacity-75" style="font-size: 0.95rem;">
       ศาลเยาวชนและครอบครัวกลาง (ประจำวันที่: <span id="currentDate">-</span>)
     </p>
 
-    <!-- ช่องค้นหา (รองรับทั้งชื่อ และ เลขคิว เช่น Q-001) -->
-    <div class="search-box px-2">
+    <!-- ช่องค้นหา (จะถูกซ่อนอัตโนมัติเมื่อเปิดด้วย ?tv=true) -->
+    <div class="search-box px-2 mt-2" id="searchBoxContainer">
       <input type="text" id="searchInput" class="form-control search-input text-center" placeholder="🔍 พิมพ์ชื่อ หรือ เลขคิว (เช่น Q-001) เพื่อค้นหา...">
     </div>
   </div>
 
-  <div class="container px-3 pb-5">
-    <!-- แถบเครื่องมือควบคุม: ปุ่มสลับ Auto Slide & ตัวแบ่งหน้า -->
+  <div class="container-fluid px-4 pb-3">
+    <!-- แถบควบคุม -->
     <div class="controls-bar">
       <div class="d-flex align-items-center gap-2">
         <span class="badge bg-dark border border-secondary text-light px-3 py-2" id="queueTotalBadge">
           ทั้งหมด: 0 รายการ
         </span>
-        <button id="toggleAutoSlideBtn" class="btn btn-outline-info btn-slide-toggle">
+        <button id="toggleAutoSlideBtn" class="btn btn-outline-info btn-sm rounded-pill">
           ▶️ เปิดโหมดเลื่อนวนอัตโนมัติ
         </button>
       </div>
 
-      <!-- ปุ่มเปลี่ยนหน้า -->
       <div class="d-flex align-items-center gap-2">
         <button id="prevPageBtn" class="page-btn">◀ ก่อนหน้า</button>
         <span id="pageIndicator" class="text-light fw-bold small px-2">หน้า 1 / 1</span>
@@ -236,7 +230,7 @@
       </div>
     </div>
 
-    <!-- ส่วนแสดงการ์ดรายการคำร้อง -->
+    <!-- รายการการ์ด -->
     <div id="queueList" class="row g-3">
       <div class="col-12 text-center py-5 text-muted">
         <div class="spinner-border text-primary mb-2" role="status"></div>
@@ -261,7 +255,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // ฟังก์ชัน Sanitizer ป้องกันช่องโหว่ XSS Injection 100%
     function escapeHTML(str) {
       if (!str) return '';
       return String(str)
@@ -279,21 +272,26 @@
     let rawQueueData = [];
     let filterKeyword = "";
 
-    // ตั้งค่าตัวแปร Pagination & Auto-Slide
-    const ITEMS_PER_PAGE = 6;         // แสดงหน้าละ 6 รายการ
-    const AUTO_SLIDE_INTERVAL = 8000;   // สลับหน้าอัตโนมัติทุกๆ 8 วินาที
-    let currentPage = 1;
-
-    // ตรวจสอบ URL Parameter ว่าเปิดในโหมด TV หรือไม่ (?tv=true หรือ ?auto=true)
+    // ตรวจสอบ Parameter โหมดทีวี
     const urlParams = new URLSearchParams(window.location.search);
     const isTVMode = urlParams.get('tv') === 'true' || urlParams.get('auto') === 'true';
+
+    // ถ้าเป็นโหมด TV ให้ใส่ Class ปรับแต่งจอ และตั้งให้แสดงหน้าละ 2 รายการ (เพื่อไม่ให้ล้นจอ และเลื่อนสลับหน้าได้)
+    if (isTVMode) {
+      document.body.classList.add('is-tv-mode');
+    }
+
+    // 💡 โหมด TV แสดงหน้าละ 2 รายการ (พอดีจอ 100% และถ้ามี 4 คิว จะกลายเป็น 2 หน้า และเลื่อนวนได้)
+    // 💡 ถ้าเป็นมือถือทั่วไป แสดงหน้าละ 6 รายการ
+    const ITEMS_PER_PAGE = isTVMode ? 2 : 6;
+    const AUTO_SLIDE_INTERVAL = 8000; // สลับหน้าทุกๆ 8 วินาที
+    let currentPage = 1;
 
     let isAutoSlideActive = isTVMode;
     let autoSlideTimer = null;
 
     const toggleBtn = document.getElementById('toggleAutoSlideBtn');
 
-    // ถ้าเข้าด้วยโหมด TV ให้ปรับปุ่มเป็นสีเขียวและเริ่ม Auto-Slide ทันที
     if (isTVMode) {
       toggleBtn.classList.remove('btn-outline-info');
       toggleBtn.classList.add('btn-success');
@@ -301,7 +299,6 @@
       startAutoSlide();
     }
 
-    // แผนผังลำดับขั้นตอน 4 ระดับ (25%, 50%, 75%, 100%)
     const statusMap = {
       "เจ้าหน้าที่รับเอกสารเพื่อตรวจสอบ": { step: 1, percent: 25 },
       "ผู้พิพากษาพิจารณาคำร้อง": { step: 2, percent: 50 },
@@ -309,14 +306,12 @@
       "เสร็จสิ้น": { step: 4, percent: 100 }
     };
 
-    // ค้นหาแบบ Realtime (รองรับทั้งชื่อและเลขคิว)
     document.getElementById('searchInput').addEventListener('input', (e) => {
       filterKeyword = e.target.value.trim().toLowerCase();
       currentPage = 1;
       renderQueueCards();
     });
 
-    // ควบคุมการเปลี่ยนหน้า Pagination
     document.getElementById('prevPageBtn').addEventListener('click', () => {
       if (currentPage > 1) {
         currentPage--;
@@ -333,7 +328,6 @@
       }
     });
 
-    // ปุ่มสลับ Auto-Slide ด้วยมือ
     toggleBtn.addEventListener('click', () => {
       isAutoSlideActive = !isAutoSlideActive;
       if (isAutoSlideActive) {
@@ -357,7 +351,7 @@
         if (totalPages <= 1) return;
 
         if (currentPage >= totalPages) {
-          currentPage = 1; // วนกลับไปหน้าแรกเมื่อถึงหน้าสุดท้าย
+          currentPage = 1;
         } else {
           currentPage++;
         }
@@ -372,7 +366,6 @@
       }
     }
 
-    // ดึงข้อมูลคิวของวันนี้แบบ Realtime
     const q = query(
       collection(db, "queues"),
       where("date_string", "==", todayStr),
@@ -406,7 +399,6 @@
       if (currentPage > totalPages) currentPage = totalPages;
       if (currentPage < 1) currentPage = 1;
 
-      // อัปเดตข้อมูลบนแถบควบคุม
       document.getElementById('queueTotalBadge').innerText = `ทั้งหมด: ${totalItems} รายการ`;
       document.getElementById('pageIndicator').innerText = `หน้า ${currentPage} / ${totalPages}`;
       document.getElementById('prevPageBtn').disabled = (currentPage === 1);
@@ -422,14 +414,15 @@
         return;
       }
 
-      // ตัดแบ่งข้อมูลแสดงตามหน้า
       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
       const pagedData = filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+      // ในโหมด TV ถ้าแสดงหน้าละ 2 รายการ ให้แบ่งฝั่งซ้าย-ขวาอย่างละ 50% (col-6)
+      const columnClass = isTVMode ? 'col-6' : 'col-12 col-md-6 col-lg-6 col-xl-4';
 
       container.innerHTML = pagedData.map(item => {
         const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
         
-        // กรองข้อมูลตัวแปรทั้งหมดเพื่อความปลอดภัยสูงสุด
         const cleanQNum = escapeHTML(item.queue_number || '-');
         const cleanDept = escapeHTML(item.department);
         const cleanName = escapeHTML(item.customer_name);
@@ -442,7 +435,7 @@
         const fillWidthPercent = (currentStep - 1) * 26.66;
 
         return `
-          <div class="col-12 col-md-6 col-lg-6 col-xl-4">
+          <div class="${columnClass}">
             <div class="queue-card p-3 h-100 d-flex flex-column justify-content-between">
               <div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -454,15 +447,14 @@
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                  <h5 class="fw-bold text-white mb-0">${cleanName}</h5>
+                  <h4 class="fw-bold text-white mb-0" style="font-size: ${isTVMode ? '1.5rem' : '1.25rem'};">${cleanName}</h4>
                   <span class="time-badge">🕒 ${timeStr} น.</span>
                 </div>
-                <p class="text-info small mb-2">📄 ${cleanSubject}</p>
+                <p class="text-info small mb-2" style="font-size: ${isTVMode ? '1rem' : '0.875rem'};">📄 ${cleanSubject}</p>
 
                 ${cleanMemo ? `<div class="memo-box text-warning mb-2">📌 ${cleanMemo}</div>` : ''}
               </div>
 
-              <!-- Progress Tracker Stepper (สถานีรถไฟ) -->
               <div class="progress-tracker">
                 <div class="tracker-track"></div>
                 <div class="tracker-fill" style="width: ${fillWidthPercent}%;"></div>
