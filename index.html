@@ -18,8 +18,8 @@
     .header-board {
       background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
       border-bottom: 2px solid #3b82f6;
-      padding: 12px 15px;
-      margin-bottom: 12px;
+      padding: 10px 15px;
+      margin-bottom: 8px;
     }
     .search-box {
       max-width: 500px;
@@ -59,7 +59,7 @@
     .memo-box {
       background-color: rgba(51, 65, 85, 0.5);
       border-left: 3px solid #3b82f6;
-      padding: 6px 10px;
+      padding: 4px 8px;
       border-radius: 4px;
       font-size: 0.85rem;
     }
@@ -67,7 +67,7 @@
     /* Stepper Tracker */
     .progress-tracker {
       position: relative;
-      margin: 12px 0 4px 0;
+      margin: 10px 0 2px 0;
       padding: 0 5px;
     }
     .tracker-track {
@@ -102,18 +102,18 @@
       text-align: center;
     }
     .step-node {
-      width: 24px;
-      height: 24px;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
       background-color: #1e293b;
-      border: 3px solid #475569;
+      border: 2px solid #475569;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       font-weight: 700;
       color: #94a3b8;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
     .step-item.active .step-node {
       border-color: #3b82f6;
@@ -133,9 +133,9 @@
       color: #ffffff;
     }
     .step-label {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: #64748b;
-      line-height: 1.2;
+      line-height: 1.1;
       font-weight: 500;
     }
     .step-item.active .step-label,
@@ -157,7 +157,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     .page-btn {
       background-color: #1e293b;
@@ -168,7 +168,7 @@
       font-size: 0.85rem;
     }
 
-    /* 📺 สไตล์โหมด TV: จัดแบบ 2x2 (2 แถว แถวละ 2 รายการ) ฟิตพอดีจอ 📺 */
+    /* 📺 ปรับขนาดเฉพาะโหมดทีวี (รองรับแถบเบราว์เซอร์ของ Samsung) 📺 */
     body.is-tv-mode {
       height: 100vh;
       overflow: hidden;
@@ -176,27 +176,27 @@
       flex-direction: column;
     }
     body.is-tv-mode .header-board {
-      padding: 8px 25px;
-      margin-bottom: 6px;
+      padding: 6px 20px;
+      margin-bottom: 4px;
     }
     body.is-tv-mode .search-box {
       display: none !important;
     }
     body.is-tv-mode .header-board h3 {
-      font-size: 1.55rem;
-      margin-bottom: 2px;
+      font-size: 1.45rem;
+      margin-bottom: 0;
     }
     body.is-tv-mode .controls-bar {
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
-    /* คำนวณความสูงของการ์ดให้แถวละ 2 ซ้อนกัน 2 ชั้นแล้วพอดีเป๊ะ */
+    /* ปรับลดความสูงให้หักลบแถบเมนูเบราว์เซอร์ Samsung เพื่อไม่ให้การ์ดตกขอบล่าง */
     body.is-tv-mode .tv-grid-card {
-      height: calc((100vh - 165px) / 2);
-      padding: 10px 14px !important;
+      height: calc((100vh - 215px) / 2);
+      padding: 8px 12px !important;
       margin-bottom: 0;
     }
     body.is-tv-mode .step-label {
-      font-size: 0.78rem;
+      font-size: 0.75rem;
     }
   </style>
 </head>
@@ -204,18 +204,18 @@
 
   <div class="header-board text-center">
     <h3 class="fw-bold text-warning">🏛️ สถานะคำร้องและการดำเนินงาน</h3>
-    <p class="text-light opacity-75" style="font-size: 0.92rem;">
+    <p class="text-light opacity-75" style="font-size: 0.88rem;">
       ศาลเยาวชนและครอบครัวกลาง (ประจำวันที่: <span id="currentDate">-</span>)
     </p>
 
-    <!-- ช่องค้นหา (จะถูกซ่อนอัตโนมัติบนจอทีวี) -->
+    <!-- ช่องค้นหา (ถูกซ่อนอัตโนมัติบนจอทีวี) -->
     <div class="search-box px-2 mt-2" id="searchBoxContainer">
       <input type="text" id="searchInput" class="form-control search-input text-center" placeholder="🔍 พิมพ์ชื่อ หรือ เลขคิว (เช่น Q-001) เพื่อค้นหา...">
     </div>
   </div>
 
-  <div class="container-fluid px-4 pb-2 flex-grow-1 d-flex flex-column justify-content-between">
-    <!-- แถบควบคุม -->
+  <div class="container-fluid px-3 pb-2 flex-grow-1 d-flex flex-column justify-content-between">
+    <!-- แถบควบคุม: ปุ่มเต็มจอ / ปุ่มเลื่อนวน / ปุ่มเปลี่ยนหน้า -->
     <div class="controls-bar">
       <div class="d-flex align-items-center gap-2">
         <span class="badge bg-dark border border-secondary text-light px-3 py-2" id="queueTotalBadge">
@@ -223,6 +223,9 @@
         </span>
         <button id="toggleAutoSlideBtn" class="btn btn-outline-info btn-sm rounded-pill">
           ▶️ เปิดโหมดเลื่อนวนอัตโนมัติ
+        </button>
+        <button id="fullscreenBtn" class="btn btn-outline-warning btn-sm rounded-pill" onclick="window.toggleFullScreen()">
+          ⛶ ขยายเต็มจอ
         </button>
       </div>
 
@@ -233,7 +236,7 @@
       </div>
     </div>
 
-    <!-- รายการการ์ด (จัดกริด 2x2 แถวละ 2 รายการ) -->
+    <!-- รายการการ์ด (2 แถว แถวละ 2 ใบ รวม 4 รายการต่อหน้า) -->
     <div id="queueList" class="row g-2 flex-grow-1 align-content-start">
       <div class="col-12 text-center py-5 text-muted">
         <div class="spinner-border text-primary mb-2" role="status"></div>
@@ -282,7 +285,27 @@
       document.body.classList.add('is-tv-mode');
     }
 
-    // 💡 แสดงหน้าละ 4 รายการ (บน TV จะจัดเป็น 2x2 พอดีจอ) | บนมือถือ 6 รายการ
+    // ฟังก์ชันสั่ง Fullscreen สำหรับ Samsung Internet และเบราว์เซอร์ทีวี
+    window.toggleFullScreen = () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch((err) => {
+          console.log('Fullscreen request error:', err);
+        });
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    };
+
+    // หากเปิดในโหมด TV และผู้ใช้กดปุ่มใดๆ บนรีโมตครั้งแรก ให้ดึงเต็มจออัตโนมัติ
+    if (isTVMode) {
+      document.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+      }, { once: true });
+    }
+
+    // แสดงหน้าละ 4 รายการในโหมดทีวี (2x2) | แสดงหน้าละ 6 รายการบนมือถือ
     const ITEMS_PER_PAGE = isTVMode ? 4 : 6;
     const AUTO_SLIDE_INTERVAL = 8000;
     let currentPage = 1;
@@ -417,7 +440,6 @@
       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
       const pagedData = filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-      // บน TV ใช้ col-6 (แถวละ 2 ใบ ซ้อน 2 ชั้น รวมเป็น 4 ใบต่อหน้า)
       const columnClass = isTVMode ? 'col-6' : 'col-12 col-md-6 col-lg-6 col-xl-4';
       const cardCustomClass = isTVMode ? 'tv-grid-card' : '';
 
@@ -448,10 +470,10 @@
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                  <h4 class="fw-bold text-white mb-0" style="font-size: ${isTVMode ? '1.35rem' : '1.2rem'};">${cleanName}</h4>
+                  <h4 class="fw-bold text-white mb-0" style="font-size: ${isTVMode ? '1.3rem' : '1.2rem'};">${cleanName}</h4>
                   <span class="time-badge">🕒 ${timeStr} น.</span>
                 </div>
-                <p class="text-info small mb-1" style="font-size: ${isTVMode ? '0.95rem' : '0.88rem'};">📄 ${cleanSubject}</p>
+                <p class="text-info small mb-1" style="font-size: ${isTVMode ? '0.92rem' : '0.88rem'};">📄 ${cleanSubject}</p>
 
                 ${cleanMemo ? `<div class="memo-box text-warning mb-1">📌 ${cleanMemo}</div>` : ''}
               </div>
